@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: docutrust
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docutrust-postgres
+  namespace: docutrust
+type: Opaque
+stringData:
+  POSTGRES_USER: docutrust
+  POSTGRES_PASSWORD: docutrust_dev_password
+  POSTGRES_DB: docutrust
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: docutrust
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.4
+          envFrom:
+            - secretRef: { name: docutrust-postgres }
+          ports: [{ containerPort: 5432 }]
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 1Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: docutrust
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docutrust-config
+  namespace: docutrust
+data:
+  DATABASE_URL: "postgresql://docutrust:docutrust_dev_password@postgres:5432/docutrust"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docutrust-api
+  namespace: docutrust
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: docutrust-api }
+  template:
+    metadata:
+      labels: { app: docutrust-api }
+    spec:
+      containers:
+        - name: api
+          image: docutrust:0.1.0
+          ports: [{ containerPort: 3000 }]
+          envFrom:
+            - configMapRef: { name: docutrust-config }
+          securityContext:
+            runAsNonRoot: true
+          # Memory limit is deliberate, not incidental: the seeded
+          # search-query DoS bug (see src/lib/searchQuery.js) causes
+          # unbounded memory growth. Capping it here means a real
+          # exploit attempt against this endpoint OOM-kills and
+          # restarts one pod, a contained, realistic blast radius, not
+          # an uncapped process eating the whole node.
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits: { cpu: "300m", memory: "256Mi" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 3000 }
+            initialDelaySeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docutrust-api
+  namespace: docutrust
+spec:
+  selector: { app: docutrust-api }
+  ports: [{ port: 80, targetPort: 3000 }]

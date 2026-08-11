@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build image
+        run: docker build -t docutrust:ci-${{ github.sha }} .
+
+  # Every stage below this line is a deliberate placeholder. This is the
+  # baseline pipeline the shared DocuTrust codebase ships with, each
+  # DevSecOps project in this track adds its own real stage here, SAST
+  # and secrets scanning in Project 1, SCA and Scorecard in Project 2,
+  # signing and provenance in Projects 4-5, and so on. Wiring a stage
+  # in before its project is reached would pre-solve the work.
