@@ -1,0 +1,40 @@
+# DocuTrust Project 1 secrets-scan config.
+#
+# Why this file exists: gitleaks 8.30.1's default aws-access-token rule
+# applies an entropy threshold (3.0) that silently rejects the seeded
+# AKIAIOSFODNN7EXAMPLE constant in src/config.js — AWS's own published
+# placeholder, deliberately low-entropy. Verified: the default config flags
+# a random high-entropy AKIA key but not the placeholder (see
+# evidence/06-secrets/README.md). This project config pins the rule without
+# the entropy gate so the seeded finding is actually surfaced, mirroring the
+# project-specific semgrep rule: the default missed it, the project config
+# catches it.
+#
+# The remaining rules below mirror the default config's essentials so the
+# full-history sweep keeps its breadth beyond just the AWS pattern.
+
+title = "gitleaks config for DocuTrust Project 1"
+
+[[rules]]
+id = "aws-access-token"
+description = "AWS access token (entropy gate removed for the seeded placeholder key)"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API key"
+regex = '''(?i)(?:api[_-]?key|apikey|secret[_-]?key|secret[_-]?token)[^A-Za-z0-9]{1,5}([A-Za-z0-9]{16,})'''
+
+[[rules]]
+id = "private-key"
+description = "Private key"
+regex = '''-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'''
+
+[[rules]]
+id = "password"
+description = "Password in URL or assignment"
+regex = '''(?i)(?:password|passwd|pwd)[=:][^\s"']{6,}'''
+
+[allowlist]
+description = "README and evidence/ document the seeded placeholder key intentionally (Project 1 brief and deliverables)"
+paths = ["README.md", "evidence/"]

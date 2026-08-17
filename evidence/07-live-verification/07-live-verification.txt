@@ -1,0 +1,18 @@
+Verifying credential found by scanners:
+  key:     AKIAIOSFODNN7EXAMPLE
+  source:  src/config.js (LEGACY_INTEGRATION_KEY)
+  check:   sts:GetCallerIdentity via AWS SDK
+
+(node:76911) Warning: NodeVersionSupportWarning: The AWS SDK for JavaScript (v3)
+versions published after the first week of January 2027
+will require node >=22. You are running node v20.20.0.
+
+To continue receiving updates to AWS services, bug fixes,
+and security updates please upgrade to node >=22.
+
+More information can be found at: https://a.co/c895JFp
+(Use `node --trace-warnings ...` to show where the warning was created)
+VERDICT: NOT LIVE — AWS rejected the token (error code: InvalidClientTokenId)
+  message: The security token included in the request is invalid.
+
+Interpretation: the key is an inert, pattern-matched placeholder, not a functioning credential. This is the expected, documented result for AKIAIOSFODNN7EXAMPLE (AWS's own published example key).

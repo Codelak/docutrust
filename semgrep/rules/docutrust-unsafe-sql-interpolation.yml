@@ -1,0 +1,40 @@
+rules:
+  - id: docutrust-unsafe-sql-interpolation
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A SQL query string is built with template-literal interpolation (${...})
+      or string concatenation instead of a parameterized query. This is a
+      SQL injection risk: user input flows into the query text. Use bound
+      parameters instead: pool.query("SELECT ... WHERE x = $1", [value]).
+    metadata:
+      category: security
+      confidence: HIGH
+      source: docutrust-project1-custom-rule
+    patterns:
+      # Written for DocuTrust but generalized beyond the one seeded line: it
+      # catches four shapes of the same mistake — direct interpolated calls,
+      # direct concatenated calls, SQL strings assembled in a variable via
+      # concatenation, and SQL strings assembled in a variable via
+      # template-literal interpolation then passed to the query method (the
+      # seeded shape at src/routes/documents.js:76).
+      - pattern-either:
+          # 1. direct: pool.query(`SELECT ... ${x} ...`)
+          - pattern: "$QUERY.query(`...${...}...`, ...)"
+          # 2. direct: pool.query("SELECT ... " + x)
+          - pattern: "$QUERY.query($A + $B, ...)"
+          # 3. SQL string built by concatenation in a variable first.
+          #    The SQL-keyword filter keeps non-SQL concatenation (URLs,
+          #    log messages) from being flagged.
+          - patterns:
+              - pattern: "$X = $A + $B"
+              - metavariable-pattern:
+                  metavariable: $A
+                  pattern-regex: "(?i)\\b(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|WHERE)\\b"
+          # 4. SQL string built in a variable via template-literal
+          #    interpolation and later passed to the query method.
+          - patterns:
+              - pattern-inside: |
+                  $X = `...${...}...`
+                  ...
+              - pattern: "$QUERY.query($X, ...)"
