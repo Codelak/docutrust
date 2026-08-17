@@ -92,13 +92,10 @@ semgrep --metrics=off --config=p/owasp-top-ten --config=p/javascript src/
 
 Real output (saved in `evidence/01-sast-default/semgrep-owasp-javascript.txt`):
 
-```
-• Findings: 1 (1 blocking)
-❯❱ javascript.express.security.injection.raw-html-format.raw-html-format
-   User data flows into the host portion of this manually-constructed HTML.
-   This can introduce a Cross-Site-Scripting (XSS) vulnerability ...
-   104┆ res.send(`<html><body><h1>${title}</h1><p>${body}</p></body></html>`);
-```
+![Semgrep default rulesets — the XSS finding](images/01-sast-default-xss.png)
+
+*Figure 1 — Real semgrep output: the XSS finding (`raw-html-format`,
+`documents.js:104`) that the default rulesets caught.*
 
 One finding: the XSS in the render endpoint — `title` and `body` written
 into an HTML response without any escaping. Default rulesets caught it.
@@ -230,6 +227,12 @@ SQL string) — `evidence/05-custom-rule/test-cases.js`.
 semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-rule/test-cases.js
 ```
 
+![Custom rule run — SQLi confirmed and generalized](images/02-sast-custom-sqli.png)
+
+*Figure 2 — Real run of the project custom rule: the seeded SQLi
+(`documents.js:77`) plus all 5 generalized positive shapes, exit code 1.
+The negative cases (parameterized query, non-SQL strings) stayed clean.*
+
 Result: **exit code 1, 7 findings** — the seeded line (`documents.js:77`)
 plus all 5 positives, and every negative stayed clean. The SQL injection
 finding the default rulesets missed was now confirmed by *our own* rule
@@ -296,12 +299,16 @@ the sweep scans every commit:
 
 ```bash
 gitleaks detect --source . -c gitleaks.toml --log-opts="--all"
-# 1 commits scanned. leaks found: 1 → aws-access-token | src/config.js : 15 | commit 685702f8
 ```
 
-Exactly one leak, the seeded constant, in the only commit. **No other
-secrets exist anywhere in the repository's history.** The sweep was executed
-and the "clean elsewhere" claim is proven, not assumed.
+![Full-history secrets sweep — exactly one leak](images/03-gitleaks-full-history.png)
+
+*Figure 3 — Real full-history sweep: exactly one leak, the seeded constant at
+`src/config.js:15` in commit `685702f8`. No other secrets exist in any
+commit.*
+
+The sweep was executed and the "clean elsewhere" claim is proven, not
+assumed.
 
 ---
 
@@ -333,6 +340,12 @@ Verifying credential found by scanners:
 VERDICT: NOT LIVE — AWS rejected the token (error code: InvalidClientTokenId)
   message: The security token included in the request is invalid.
 ```
+
+![Live secret verification — AWS verdict](images/04-live-verification.png)
+
+*Figure 4 — Real network call to AWS `sts:GetCallerIdentity` against the
+found key. The error code `InvalidClientTokenId` is AWS's own verdict: the
+key does not exist in its identity service.*
 
 **The key is inert.** It matches every pattern, and AWS itself says it
 doesn't work. That's the whole distinction this project exists to teach:
@@ -384,6 +397,11 @@ curl localhost:3000/documents/2/render
 semgrep --metrics=off --config semgrep/rules/ --error src/    # → 0 findings, exit 0
 ```
 
+![SAST rerun after fixes — clean](images/05-rerun-clean.png)
+
+*Figure 5 — Real rerun after the fixes: the custom rule reports 0 findings,
+exit 0. The SQL injection finding is gone.*
+
 One flag remained from the *default* ruleset: `raw-html-format` still points
 at the render line even though the output is escaped. Triage: **false
 positive**. The rule heuristically flags any manual HTML construction with
@@ -408,6 +426,10 @@ proof runs on my own private repo, `lakunzy7/docutrust`.
 ### Run 1: green on the fixed code
 
 Pushed `main`. CI: `build-and-test` ✅, `sast` ✅, `secrets-scan` ✅.
+
+![CI on main — all green](images/06-ci-main-green.png)
+
+*Figure 6 — Real GitHub Actions run on `main`: all three jobs green.*
 
 ### The gate catching our own real mistake
 
@@ -440,6 +462,12 @@ X sast           → semgrep.rules.docutrust-unsafe-sql-interpolation: Findings:
 X secrets-scan   → WRN leaks found: 1
 ✓ build-and-test
 ```
+
+![CI on the violation PR — both gates blocked it](images/07-ci-violation-red.png)
+
+*Figure 7 — Real GitHub Actions run on the seeded violation PR: `sast` and
+`secrets-scan` both failed with exit code 1 while `build-and-test` passed.
+The gates demonstrably block new violations.*
 
 **CI blocked it. Both gates red on real GitHub Actions, with real output**
 (`evidence/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt`). I closed
@@ -484,3 +512,4 @@ it exists for, and where the SCA stage slots into the same pipeline.
 | `evidence/08-fixed-rerun/` | 7 — fixes, runtime proof, clean rerun, FP triage |
 | `evidence/09-ci-gate/` | 9 — gate caught our literal; violation PR blocked |
 | `docs/final-findings-report.md` | 10 — report + Project 2 handoff |
+| `docs/images/` | Figures 1–7 — visual captures of the real tool outputs |
