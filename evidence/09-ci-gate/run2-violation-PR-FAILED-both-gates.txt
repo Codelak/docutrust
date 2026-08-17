@@ -1,0 +1,56 @@
+secrets-scan	Run secrets scan (project config, full history)	﻿2026-08-17T11:15:31.3369486Z ##[group]Run gitleaks detect --source . -c gitleaks.toml --log-opts="--all" --no-banner
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.3371424Z [36;1mgitleaks detect --source . -c gitleaks.toml --log-opts="--all" --no-banner[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.3417729Z shell: /usr/bin/bash -e {0}
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.3418788Z ##[endgroup]
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.7696002Z [90m11:15AM[0m [32mINF[0m [1m7 commits scanned.[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.7702236Z [90m11:15AM[0m [32mINF[0m [1mscanned ~154346 bytes (154.35 KB) in 40.7ms[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.7705258Z [90m11:15AM[0m [33mWRN[0m [1mleaks found: 1[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:15:31.7724976Z ##[error]Process completed with exit code 1.
+sast	Run SAST (project custom rule)	﻿2026-08-17T11:15:46.9879765Z ##[group]Run semgrep --metrics=off --config semgrep/rules/ --error src/
+sast	Run SAST (project custom rule)	2026-08-17T11:15:46.9880360Z [36;1msemgrep --metrics=off --config semgrep/rules/ --error src/[0m
+sast	Run SAST (project custom rule)	2026-08-17T11:15:46.9919191Z shell: /usr/bin/bash -e {0}
+sast	Run SAST (project custom rule)	2026-08-17T11:15:46.9919475Z ##[endgroup]
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4614828Z                
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4615591Z                
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4633840Z ┌─────────────┐
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4653521Z │ Scan Status │
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4692016Z └─────────────┘
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4698824Z   Scanning 9 files tracked by git with 1 Code rule:
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.4700676Z   Scanning 9 files.
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6602604Z                    
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6631789Z                    
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6634141Z ┌─────────────────┐
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6634742Z │ 2 Code Findings │
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6635784Z └─────────────────┘
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6653480Z                         
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6654344Z     src/routes/legacy.js
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6657972Z    ❯❯❱ semgrep.rules.docutrust-unsafe-sql-interpolation
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6659079Z           ❰❰ Blocking ❱❱
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6700690Z           A SQL query string is built with template-literal interpolation (${...}) or string concatenation
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6702393Z           instead of a parameterized query. This is a SQL injection risk: user input flows into the query 
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6720703Z           text. Use bound parameters instead: pool.query("SELECT ... WHERE x = SELECT", [value]).         
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6743612Z                                                                                                           
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6814658Z            11┆ const query = "SELECT id, title FROM documents WHERE title ILIKE '%" + q + "%'";
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6833503Z             ⋮┆----------------------------------------
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6834656Z    ❯❯❱ semgrep.rules.docutrust-unsafe-sql-interpolation
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6835946Z           ❰❰ Blocking ❱❱
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6838817Z           A SQL query string is built with template-literal interpolation (${...}) or string concatenation
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6839882Z           instead of a parameterized query. This is a SQL injection risk: user input flows into the query 
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6840873Z           text. Use bound parameters instead: pool.query("SELECT ... WHERE x = WHERE", [value]).          
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6841675Z                                                                                                           
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6842575Z            11┆ const query = "SELECT id, title FROM documents WHERE title ILIKE '%" + q + "%'";
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6843742Z 
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6843863Z                 
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6844151Z                 
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6844490Z ┌──────────────┐
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6844814Z │ Scan Summary │
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6845140Z └──────────────┘
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6845489Z ✅ Scan completed successfully.
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6845900Z  • Findings: 2 (2 blocking)
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6846291Z  • Rules run: 1
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6846632Z  • Targets scanned: 9
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6847001Z  • Parsed lines: ~100.0%
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6847440Z  • Scan was limited to files tracked by git
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6848172Z  • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.6848812Z Ran 1 rule on 9 files: 2 findings.
+sast	Run SAST (project custom rule)	2026-08-17T11:15:48.8213301Z ##[error]Process completed with exit code 1.
