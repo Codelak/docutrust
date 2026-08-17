@@ -1,0 +1,8 @@
+secrets-scan	Run secrets scan (project config, full history)	﻿2026-08-17T11:06:21.6797188Z ##[group]Run gitleaks detect --source . -c gitleaks.toml --log-opts="--all" --no-banner
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:21.6798201Z [36;1mgitleaks detect --source . -c gitleaks.toml --log-opts="--all" --no-banner[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:21.6837330Z shell: /usr/bin/bash -e {0}
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:21.6837884Z ##[endgroup]
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:22.1181079Z [90m11:06AM[0m [32mINF[0m [1m4 commits scanned.[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:22.1182384Z [90m11:06AM[0m [32mINF[0m [1mscanned ~151839 bytes (151.84 KB) in 22.1ms[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:22.1183671Z [90m11:06AM[0m [33mWRN[0m [1mleaks found: 2[0m
+secrets-scan	Run secrets scan (project config, full history)	2026-08-17T11:06:22.1198316Z ##[error]Process completed with exit code 1.
