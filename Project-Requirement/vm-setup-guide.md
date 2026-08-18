@@ -55,16 +55,21 @@ sudo -u postgres psql -c "CREATE DATABASE docutrust OWNER docutrust;"
 
 ## 5. App setup
 
+**Important:** the app does NOT auto-load `.env.local` (no dotenv) —
+`src/db.js` reads `process.env.DATABASE_URL` directly. You must load it
+in your shell before `migrate` and `start`:
+
 ```bash
 cp .env.example .env.local   # DATABASE_URL already points at localhost:5432
 npm install
+set -a && . ./.env.local && set +a    # load DATABASE_URL into the shell
 npm run migrate              # creates the schema
 ```
 
 ## 6. Start the app
 
 ```bash
-npm start                    # listens on port 3000
+set -a && . ./.env.local && set +a && npm start   # listens on port 3000
 ```
 In a second terminal:
 ```bash
