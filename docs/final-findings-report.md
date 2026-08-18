@@ -101,7 +101,7 @@ update.
 - **sast** — semgrep with the project custom rule, `--error` (findings fail).
 - **secrets-scan** — gitleaks with `gitleaks.toml`, full history.
 
-Proof (real GitHub Actions runs on `lakunzy7/docutrust`, private):
+Proof (real GitHub Actions runs on `Codelak/docutrust`, private):
 
 | Run | Outcome |
 |---|---|
@@ -133,7 +133,7 @@ Everything Project 2 needs is already known and documented:
 ## 9. Tooling & environment
 
 - semgrep 1.173.0 (pipx), gitleaks 8.30.1 (binary), Node 20, Postgres 16.4
-  (Docker), GitHub Actions (private repo `lakunzy7/docutrust`).
+  (Docker), GitHub Actions (private repo `Codelak/docutrust`).
 - Custom rule: `semgrep/rules/docutrust-unsafe-sql-interpolation.yml`
 - Secrets config: `gitleaks.toml`
 - Live verification: `security/verify-credential.js` (isolated deps under

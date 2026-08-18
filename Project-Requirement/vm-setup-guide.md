@@ -31,7 +31,7 @@ npm --version
 ## 3. Clone the repo
 
 ```bash
-git clone https://github.com/lakunzy7/docutrust.git
+git clone https://github.com/Codelak/docutrust.git
 cd docutrust
 ```
 The repo is private, so GitHub will ask for authentication:

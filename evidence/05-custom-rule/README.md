@@ -15,7 +15,12 @@ branches, written for this codebase but generalizing past the one seeded line:
 
 ## Verification (`run.txt`)
 `semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-rule/test-cases.js`
-→ exit code **1** (blocking), 7 findings:
+→ exit code **1** (blocking), 7 findings. (Historical run against the
+*vulnerable* code — includes the seeded line; the code has since been
+fixed. `run-committed-path.txt` is a fresh run against the committed
+`test-cases.js` path on the current fixed code: 6 findings, all in
+`test-cases.js` — the seeded line no longer exists to flag, which is
+itself the rerun proof.):
 
 | Location | Shape | Branch |
 |---|---|---|
