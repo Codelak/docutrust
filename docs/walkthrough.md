@@ -548,8 +548,12 @@ src/routes/documents.js
 
 **What just happened:** semgrep found the render endpoint's HTML
 construction (Stage 3.4). It's flagging that user data (`title`, `body`)
-gets interpolated into HTML. The default ruleset caught the XSS — 
-screenshot in `docs/images/01-sast-default-xss.png`.
+gets interpolated into HTML. The default ruleset caught the XSS:
+
+![Figure 1 — semgrep default rulesets: the XSS finding](images/01-sast-default-xss.png)
+
+*Figure 1 — Real semgrep output: the XSS finding (`raw-html-format`,
+`documents.js:104`) that the default rulesets caught.*
 
 **And now the part that matters:** where was the SQL injection? Nowhere.
 Zero findings for it. The textbook SQL injection in the search endpoint —
@@ -711,8 +715,13 @@ evidence/05-custom-rule/test-cases.js:32  POSITIVE 5: variable + concatenation (
 ```
 
 The three negatives stay **clean** — the rule didn't flag the correct
-parameterized query, the greeting, or the static string. Screenshot:
-`docs/images/02-sast-custom-sqli.png`.
+parameterized query, the greeting, or the static string:
+
+![Figure 2 — project custom rule: the SQLi the defaults missed, plus all 5 generalized shapes](images/02-sast-custom-sqli.png)
+
+*Figure 2 — Real run of the project custom rule: the seeded SQLi
+(`documents.js:77`) plus all 5 generalized positive shapes, exit code 1.
+The negative cases (parameterized query, non-SQL strings) stayed clean.*
 
 > **Lesson 2:** writing a rule is 20% the rule and 80% proving it. The
 > negative cases are what show you understand the vulnerability.
@@ -839,11 +848,17 @@ gitleaks detect --source . -c gitleaks.toml --log-opts="--all"
 
 Breaking it down: `--log-opts="--all"` tells git "don't just look at
 the current files — look at every commit". Expected result: exactly one
-leak, the seeded constant, in the commit that introduced it. The
-original run's output is saved in `evidence/06-secrets/full-history.json`
-and shown in `docs/images/03-gitleaks-full-history.png` — one leak, no
-other secrets in any commit. The "clean elsewhere" claim is *proven*,
-not assumed.
+leak, the seeded constant, in the commit that introduced it:
+
+![Figure 3 — full-history gitleaks sweep](images/03-gitleaks-full-history.png)
+
+*Figure 3 — Real full-history sweep: exactly one leak, the seeded
+constant at `src/config.js:15` in commit `685702f8`. No other secrets
+exist in any commit.*
+
+The original run's machine-readable output is saved in
+`evidence/06-secrets/full-history.json`; the "clean elsewhere" claim is
+*proven*, not assumed.
 
 > **Lesson 4 (the dark one):** committed secrets live forever. A secret
 > pushed to git is in the history even after you delete the line — you'll
@@ -911,8 +926,13 @@ VERDICT: NOT LIVE — AWS rejected the token (error code: InvalidClientTokenId)
 ```
 
 **The key is inert.** It matches every pattern, and AWS itself says it
-doesn't exist in its identity service. Screenshot:
-`docs/images/04-live-verification.png`.
+doesn't exist in its identity service:
+
+![Figure 4 — live secret verification](images/04-live-verification.png)
+
+*Figure 4 — Real network call to AWS `sts:GetCallerIdentity` against the
+found key. The error code `InvalidClientTokenId` is AWS's own verdict:
+the key does not exist in its identity service.*
 
 > **Lesson 5:** a scanner *finding* is a pattern match; a *security
 > finding* is one you have verified. This constant is cosmetic —
@@ -1072,8 +1092,10 @@ Expected result — **0 findings, exit code 0**:
 Ran 1 rule on 7 files: 0 findings.
 ```
 
-Screenshot: `docs/images/05-rerun-clean.png`. The SQL injection finding
-is gone.
+![Figure 5 — SAST rerun after the fixes](images/05-rerun-clean.png)
+
+*Figure 5 — Real rerun after the fixes: the custom rule reports
+0 findings, exit 0. The SQL injection finding is gone.*
 
 **One flag remained** from the *default* ruleset: `raw-html-format`
 still points at the render line even though the output is escaped.
@@ -1105,8 +1127,11 @@ waiting for exactly this project. I added two enforcement jobs:
 
 ### Step 12.2 — Run 1: green on the fixed code
 
-Pushed `main`. CI: `build-and-test` ✅, `sast` ✅, `secrets-scan` ✅.
-Screenshot: `docs/images/06-ci-main-green.png`.
+Pushed `main`. CI: `build-and-test` ✅, `sast` ✅, `secrets-scan` ✅:
+
+![Figure 6 — CI on main, all jobs green](images/06-ci-main-green.png)
+
+*Figure 6 — Real GitHub Actions run on `main`: all three jobs green.*
 
 ### Step 12.3 — The gate catching our own real mistake
 
@@ -1140,6 +1165,12 @@ X secrets-scan   → WRN leaks found: 1
 ```
 
 Screenshot: `docs/images/07-ci-violation-red.png`.
+
+![Figure 7 — CI on the violation PR: both gates blocked it](images/07-ci-violation-red.png)
+
+*Figure 7 — Real GitHub Actions run on the seeded violation PR: `sast`
+and `secrets-scan` both failed with exit code 1 while `build-and-test`
+passed. The gates demonstrably block new violations.*
 
 **CI blocked it. Both gates red on real GitHub Actions, with real
 output** (saved in `evidence/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt`).
