@@ -35,9 +35,12 @@ def render(in_path, out_path, title, subtitle, accent):
     for ln in raw.splitlines():
         lines.extend(wrap(ln, MAXW))
 
-    font  = ImageFont.truetype(FONT_P, FSZ)
-    fbold = ImageFont.truetype(FONT_B, FSZ)
-    fbold_small = ImageFont.truetype(FONT_B, 12)
+    try:
+        font  = ImageFont.truetype(FONT_P, FSZ)
+        fbold = ImageFont.truetype(FONT_B, FSZ)
+        fbold_small = ImageFont.truetype(FONT_B, 12)
+    except OSError:  # DejaVu fonts not installed — degrade gracefully
+        font = fbold = fbold_small = ImageFont.load_default()
 
     width  = PAD_X * 2 + MAXW * CHAR_W
     tbar_h = 40
@@ -59,6 +62,14 @@ def render(in_path, out_path, title, subtitle, accent):
     img.save(out_path)
     print(f"{out_path}: {width}x{height}, {len(lines)} lines")
 
+import os
+
+def render_if_exists(in_path, out_path, title, subtitle, accent):
+    if not os.path.exists(in_path):
+        print(f"SKIP {out_path}: source {in_path} not present")
+        return
+    render(in_path, out_path, title, subtitle, accent)
+
 AMBER = (240, 178, 90)
 GREEN = (98, 200, 120)
 RED   = (232, 92, 104)
@@ -73,7 +84,7 @@ render("evidence/05-custom-rule/run.txt",
        "semgrep --config=semgrep/rules/ --error src/ test-cases.js",
        "Project custom rule — the SQLi the defaults missed + 5 generalized shapes (deliverables 2 & 4) · exit 1", AMBER)
 
-render("/tmp/gitleaks-history.txt",
+render_if_exists("evidence/06-secrets/full-history-sweep.txt",
        "docs/images/03-gitleaks-full-history.png",
        "gitleaks detect -c gitleaks.toml --log-opts=\"--all\"",
        "Full-history secrets sweep — the seeded key, exactly one leak (deliverables 5 & 8) · exit 1", AMBER)
@@ -88,12 +99,15 @@ render("evidence/08-fixed-rerun/semgrep-custom.txt",
        "semgrep --config=semgrep/rules/ --error src/  (after fixes)",
        "Deliverable 7 rerun — 0 findings, exit 0", GREEN)
 
-render("/tmp/ci-main-green.txt",
+# Figure 6's capture was never committed with the repo (the original green
+# main run happened on the pre-rename account). Regenerate it by saving a
+# fresh green run's view: gh run view <id> > evidence/09-ci-gate/run2-main-GREEN.txt
+render_if_exists("evidence/09-ci-gate/run2-main-GREEN.txt",
        "docs/images/06-ci-main-green.png",
        "gh run view — CI on main (fixed code)",
        "All three jobs green: build-and-test, sast, secrets-scan (deliverable 9)", GREEN)
 
-render("/tmp/ci-violation-red.txt",
+render("evidence/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt",
        "docs/images/07-ci-violation-red.png",
        "gh run view — CI on the seeded violation PR",
        "Both gates blocked it: sast exit 1, secrets-scan exit 1 (deliverable 9)", RED)

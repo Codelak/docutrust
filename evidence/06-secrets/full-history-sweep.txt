@@ -1,0 +1,15 @@
+$ gitleaks detect --source . -c gitleaks.toml --log-opts="--all"
+
+INF 1 commits scanned.
+INF scan completed
+WRN leaks found: 1
+
+Finding:   aws-access-token
+  File:    src/config.js
+  Line:    15
+  Commit:  685702f83ff71bb3ecd8ce1318a0cff28e8b610d
+  Match:   AKIAIOSFODNN7EXAMPLE
+  Rule:    AWS access token (entropy gate removed for the seeded placeholder key)
+
+(Reconstructed for rendering from the recorded evidence file
+ full-history.json — the machine-readable capture of the same run.)
