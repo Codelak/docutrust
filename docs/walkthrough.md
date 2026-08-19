@@ -60,6 +60,9 @@ Here is the stage map for this whole walkthrough:
   does. You don't type the comment.
 - `$` at the start of a line just means "this is a terminal prompt". Don't
   type the `$`.
+- In the Word version of this guide, every command is printed in **red** —
+  those are the lines you type. Everything else (explanations, file
+  contents, tool output) stays black.
 
 ### Step 1.1 — Check what you already have
 

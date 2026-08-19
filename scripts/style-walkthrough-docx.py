@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """Style the pandoc-generated walkthrough.docx: cover page, heading colors,
-shaded code blocks, table header row, and page numbers in the footer.
+shaded code blocks, table header row, page numbers in the footer, and
+red-colored command lines.
+
+Shell commands (```bash fences) render in dark red so a reader can pick out
+"type this" lines at a glance; file-content blocks (json/html/js/toml) and
+command *output* (indented code blocks) stay black. Pandoc merges and wraps
+code lines into paragraphs unpredictably, so each paragraph is matched back
+to its md code block by text (a paragraph never spans two blocks); ```bash
+blocks mark commands.
 
 Usage: pandoc walkthrough.md -o walkthrough.docx --toc --toc-depth=2
        python3 scripts/style-walkthrough-docx.py docs/walkthrough.docx
 """
+import os
 import sys
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
@@ -17,6 +26,7 @@ HEADING_COLOR = RGBColor(0x1F, 0x4E, 0x79)   # dark professional blue
 CODE_FILL = "F2F2F2"                         # light gray behind code blocks
 TABLE_HEADER_FILL = "DEEAF6"                 # light blue table header row
 ACCENT = RGBColor(0x2E, 0x74, 0xB5)
+COMMAND_RED = RGBColor(0xC0, 0x00, 0x00)     # dark red for command lines
 
 
 def shade_paragraph(p, fill):
@@ -126,6 +136,104 @@ def find_style(doc, name):
     return None
 
 
+def parse_md_code(md_path):
+    """Parse walkthrough.md into its code blocks: fenced blocks (with their
+    language tag) and 4-space-indented blocks (pandoc's indented code, used
+    here for command *output*). Commands are fenced ```bash blocks."""
+    blocks = []  # each: {"lang", "cmd": bool, "lines": [str, ...]}
+    in_fence = False
+    fence_lang = None
+    cur = None
+    with open(md_path, encoding="utf-8") as f:
+        for raw in f:
+            s = raw.rstrip("\n")
+            if s.strip().startswith("```"):
+                if not in_fence:
+                    in_fence = True
+                    fence_lang = s.strip()[3:].strip()  # "" for bare fences
+                    cur = []
+                else:
+                    blocks.append({"lang": fence_lang,
+                                   "cmd": fence_lang == "bash", "lines": cur})
+                    in_fence, cur = False, None
+                continue
+            if in_fence:
+                cur.append(s)  # fenced: keep indentation verbatim
+            elif cur is None and len(s) - len(s.lstrip()) >= 4 and s.strip():
+                # 4-space-indented block: pandoc strips the common indent
+                cur = [s]
+            elif cur is not None and (s.strip() == "" or
+                                      len(s) - len(s.lstrip()) >= 4):
+                cur.append(s)
+            else:
+                if cur is not None:
+                    indent = min((len(l) - len(l.lstrip())
+                                  for l in cur if l.strip()), default=0)
+                    blocks.append({"lang": None, "cmd": False,
+                                   "lines": [l[indent:] for l in cur]})
+                    cur = None
+    if cur is not None and not in_fence:
+        indent = min((len(l) - len(l.lstrip()) for l in cur if l.strip()),
+                     default=0)
+        blocks.append({"lang": None, "cmd": False,
+                       "lines": [l[indent:] for l in cur]})
+    return blocks
+
+
+def match_paragraphs(paras, blocks):
+    """Map each docx Source Code paragraph back to the md block it came from.
+
+    Pandoc merges lines into one paragraph (w:br breaks) and wraps long lines,
+    so line counts don't line up — but a paragraph never spans two code
+    blocks. Match each paragraph's text segments greedily against the md
+    lines in order; the block's cmd flag decides the color."""
+    b = l = c = 0            # pointer: block b, line l, char c
+    out = []
+    for t in paras:
+        segs = t.split("\n")
+        target_b = None
+        for si in segs:
+            if si == "":
+                continue  # blank line: consumed at current position
+            hit = None
+            while b < len(blocks) and hit is None:
+                lines = blocks[b]["lines"]
+                if l >= len(lines):
+                    b, l, c = b + 1, 0, 0
+                    continue
+                rest = lines[l][c:]
+                if rest.startswith(si):
+                    hit = (b, l, c)
+                else:
+                    # maybe the segment begins on a later line of this block
+                    for j in range(l + 1, len(lines)):
+                        if lines[j].startswith(si):
+                            hit = (b, j, 0)
+                            break
+                    if hit is None:
+                        b, l, c = b + 1, 0, 0
+            if hit is None:
+                raise SystemExit(f"could not match code paragraph: {t!r}")
+            hb, hl, hc = hit
+            if target_b is None:
+                target_b = hb
+            # advance past the matched segment
+            l, c = hl, hc + len(si)
+            if c >= len(blocks[hb]["lines"][l]):
+                l, c = l + 1, 0
+        if target_b is None:
+            target_b = b     # blank paragraph: belongs to the current block
+        out.append(blocks[target_b]["cmd"])
+    # fully consumed trailing blocks don't count as leftover
+    while b < len(blocks) and l >= len(blocks[b]["lines"]):
+        b += 1
+        l = 0
+    if b < len(blocks):
+        raise SystemExit(f"leftover md code after {len(paras)} paragraphs "
+                         f"(block {b} of {len(blocks)})")
+    return out
+
+
 def main(path):
     doc = Document(path)
 
@@ -138,13 +246,23 @@ def main(path):
         st.font.size = Pt(size)
         st.font.bold = True
 
-    # --- code blocks: shaded, tighter --------------------------------
-    for p in doc.paragraphs:
-        sname = p.style.name if p.style else ""
-        if "Source Code" in sname or "SourceCode" in sname:
-            shade_paragraph(p, CODE_FILL)
-            p.paragraph_format.space_after = Pt(0)
-            p.paragraph_format.space_before = Pt(0)
+    # --- code blocks: shaded, tighter; commands in red -----------------
+    # Pandoc's paragraph layout doesn't line up 1:1 with md lines, so match
+    # each paragraph back to its md block; ```bash blocks are commands.
+    md_path = os.path.join(os.path.dirname(os.path.abspath(path)),
+                           "walkthrough.md")
+    blocks = parse_md_code(md_path)
+    paras = [p for p in doc.paragraphs
+             if p.style and ("Source Code" in p.style.name
+                             or "SourceCode" in p.style.name)]
+    marks = match_paragraphs([p.text for p in paras], blocks)
+    for p, is_cmd in zip(paras, marks):
+        shade_paragraph(p, CODE_FILL)
+        p.paragraph_format.space_after = Pt(0)
+        p.paragraph_format.space_before = Pt(0)
+        if is_cmd:
+            for r in p.runs:
+                r.font.color.rgb = COMMAND_RED
 
     # --- tables: header row shaded + bold -----------------------------
     for tbl in doc.tables:
@@ -158,7 +276,8 @@ def main(path):
     add_page_number_footer(doc)
     add_cover_page(doc)
     doc.save(path)
-    print(f"styled {path}: cover, heading colors, code shading, table headers, footer page numbers")
+    print(f"styled {path}: cover, heading colors, code shading (commands in red), "
+          "table headers, footer page numbers")
 
 
 if __name__ == "__main__":
