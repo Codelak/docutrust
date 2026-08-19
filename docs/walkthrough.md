@@ -23,7 +23,7 @@ calls them "seeded findings" — they were put there on purpose for you to
 find):
 
 | Seeded finding | What it is | Is it a real problem? |
-|---|---|---|
+|:---|:---|:---|
 | SQL injection in the search endpoint | A search box that pastes your text directly into a database query | ✅ Real — must be fixed |
 | Stored/reflected XSS in the render endpoint | A page that prints document titles/body into HTML without escaping | ✅ Real — must be fixed |
 | An "AWS key" constant (`AKIAIOSFODNN7EXAMPLE`) | Shaped exactly like a real AWS key, but it's AWS's **published example key** | ❌ Not real — but you must *prove* that |
@@ -36,7 +36,7 @@ find):
 Here is the stage map for this whole walkthrough:
 
 | Stage | What you do | Why |
-|---|---|---|
+|:---|:---|:---|
 | 1–2 | Install the tools, start the database | You need a working setup |
 | 3–4 | Run the app and smoke-test it | You can't judge a scanner finding without knowing what the code does when it runs |
 | 5–6 | Scan with default rules, confirm the XSS by hand | See what generic tools catch |
@@ -52,7 +52,7 @@ Here is the stage map for this whole walkthrough:
 ### A note about commands in this guide
 
 - Every command is written **on its own line**, with a short explanation
-  before it and (usually) the output you should see after it.
+  before or after it and (usually) the output you should see after it.
 - Paste **one command at a time**, look at what it printed, then move on.
   Do not copy-paste a whole block — the whole point of this guide is that
   you understand every step.
@@ -195,6 +195,8 @@ Check it works:
 semgrep --version
 ```
 
+You should see something like `semgrep 1.173.0`.
+
 ### Step 1.5 — Install gitleaks
 
 **What is gitleaks?** It's a *secrets scanner*. It reads your code (and
@@ -275,7 +277,7 @@ docker run -d --name docutrust-postgres \
 Breaking it down:
 
 | Part | What it does |
-|---|---|
+|:---|:---|
 | `docker run` | "create a new container" |
 | `-d` | "detached" — run it in the background, don't block this terminal |
 | `--name docutrust-postgres` | give the container a name so you can control it later |
@@ -312,6 +314,10 @@ Now go into the project folder and install the libraries the app needs:
 ```bash
 cd docutrust
 ```
+
+**What just happened:** `cd` ("change directory") moves your terminal into
+the project folder. From here on, run every command from inside
+`docutrust`.
 
 ```bash
 npm install
@@ -355,12 +361,21 @@ tell your terminal to load the file, *in every terminal where you run the
 app*:
 
 ```bash
-source .env.local
+set -a && source .env.local && set +a
 ```
 
-This runs the file's contents in your current terminal, which sets
-`DATABASE_URL` for this terminal session. (If you open a new terminal
-later, run this again — that's normal and expected.)
+This runs the file's contents in your current terminal and exports them,
+so `DATABASE_URL` reaches every command you run afterwards — including
+`node`, which only sees *exported* variables.
+
+> ⚠️ **Why `set -a`?** A plain `source .env.local` only sets a *shell*
+> variable, and child programs like Node never see shell variables. The
+> symptom: `npm run migrate` or `npm start` fails with
+> `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string`
+> (the app silently tries to connect as your OS user with no password).
+> `set -a` turns on auto-export for the source, and `set +a` turns it off
+> again. If you open a new terminal later, run this same line again —
+> that's normal and expected.
 
 ### Step 2.5 — Create the database tables
 
@@ -441,7 +456,7 @@ curl -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"
 Breaking it down:
 
 | Part | What it does |
-|---|---|
+|:---|:---|
 | `curl` | the tool we use to send HTTP requests |
 | `-X POST` | use the POST method — "create something new" (browsers use GET to *read*, POST to *create*) |
 | `localhost:3000/documents` | the app's address + the documents resource |
@@ -532,7 +547,7 @@ semgrep --metrics=off --config=p/owasp-top-ten --config=p/javascript src/
 Breaking it down:
 
 | Part | What it does |
-|---|---|
+|:---|:---|
 | `semgrep` | the scanner |
 | `--metrics=off` | don't send anonymous usage statistics — good hygiene |
 | `--config=p/owasp-top-ten` | use the OWASP Top Ten ruleset (`p/` is semgrep's shorthand for "registry") |
@@ -702,7 +717,7 @@ semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-ru
 Breaking it down:
 
 | Part | What it does |
-|---|---|
+|:---|:---|
 | `--config semgrep/rules/` | use *our* rule file |
 | `--error` | "exit with a non-zero code if any finding" — this is how scripts and CI know a scan failed |
 | `src/ evidence/05-custom-rule/test-cases.js` | scan the app *and* the test file |
@@ -754,7 +769,7 @@ gitleaks detect --source .
 Breaking it down:
 
 | Part | What it does |
-|---|---|
+|:---|:---|
 | `gitleaks` | the secrets scanner |
 | `detect` | scan for secrets |
 | `--source .` | scan the current folder (`.` = "here") |
@@ -908,11 +923,19 @@ npm install
 cd ..
 ```
 
+**What just happened:** we stepped into `security/`, installed that
+script's own dependencies, and stepped back to the project root — the
+next command runs from there.
+
 Then run the check:
 
 ```bash
 node security/verify-credential.js
 ```
+
+**What just happened:** Node runs the verification script — it reads the
+found key straight from `src/config.js`, makes the call to AWS, and
+prints the verdict.
 
 ### Step 8.3 — The verdict
 
@@ -1124,7 +1147,7 @@ vulnerability or secret gets *blocked* — not just noticed.
 waiting for exactly this project. I added two enforcement jobs:
 
 | Job | What it runs | How it blocks |
-|---|---|---|
+|:---|:---|:---|
 | `sast` | semgrep with our custom rule | `--error` → any finding fails the build |
 | `secrets-scan` | gitleaks with `gitleaks.toml`, full history | any leak fails the build |
 
@@ -1217,7 +1240,7 @@ the same pipeline.
 ## Evidence index
 
 | Evidence | Deliverable |
-|---|---|
+|:---|:---|
 | `evidence/01-sast-default/` | 1–3 — default SAST, XSS confirmed, SQLi missed |
 | `evidence/05-custom-rule/` | 4 — custom rule + generalization proof (test-cases.js) |
 | `evidence/06-secrets/` | 5, 8 — secrets scan, full-history sweep |
