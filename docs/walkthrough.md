@@ -2,15 +2,18 @@
 
 *A beginner's guide to how I carried out Project 1 of the DevSecOps track on
 DocuTrust. Every command below actually ran, and every output quoted below is
-real output I got. Evidence files and screenshots are cited along the way.*
+real output I got. Evidence files and screenshots are cited along the way.
+The guide assumes a Bash terminal (macOS, Linux, or WSL2 on Windows).*
 
 ---
 
 ## The project in one paragraph (read this first)
 
-You are given an app — **DocuTrust**, a small Node.js/Express document API
-that stores documents in PostgreSQL. Nobody has ever scanned it for security
-problems. Your job is to do the things a real DevSecOps engineer does:
+You are given an app — **DocuTrust**, a small web API (a program other
+programs can talk to over the network), built on Node.js and Express (a
+popular Node.js web framework), storing documents in PostgreSQL. Nobody
+has ever scanned it for security problems. Your job is to do the things a
+real DevSecOps engineer does:
 
 1. Run real security tools against it and **capture the real output**.
 2. Write a **custom rule** that catches a vulnerability the built-in rules
@@ -44,6 +47,8 @@ Here is the stage map for this whole walkthrough:
 | 8–9 | Scan for secrets, verify the "key" live | Pattern match ≠ proof |
 | 10–11 | Fix both vulnerabilities, prove the fixes | The actual job |
 | 12–13 | Wire the CI gate, write the report | Make it stick |
+
+*Plan for roughly 60–90 minutes end to end.*
 
 ---
 
@@ -460,7 +465,7 @@ Breaking it down:
 | `curl` | the tool we use to send HTTP requests |
 | `-X POST` | use the POST method — "create something new" (browsers use GET to *read*, POST to *create*) |
 | `localhost:3000/documents` | the app's address + the documents resource |
-| `-H 'Content-Type: application/json'` | tell the app "what follows is JSON" — the app only parses the body if you send this header |
+| `-H 'Content-Type: application/json'` | tell the app "what follows is JSON" (JSON is a plain-text format for describing data) — the app only parses the body if you send this header |
 | `-d '...'` | the data ("body") to send — a title and a body in JSON format |
 
 Expected output (note the `id` the server assigned):
@@ -566,9 +571,11 @@ src/routes/documents.js
 
 **What just happened:** semgrep found the render endpoint's HTML
 construction (Stage 3.4). It's flagging that user data (`title`, `body`)
-gets interpolated into HTML. The default ruleset caught the XSS:
+gets interpolated into HTML — the classic XSS pattern (printing user
+input into a web page unescaped; the plain-language definition is in
+Stage 5). The default ruleset caught the XSS:
 
-![Figure 1 — semgrep default rulesets: the XSS finding](images/01-sast-default-xss.png)
+![](images/01-sast-default-xss.png)
 
 *Figure 1 — Real semgrep output: the XSS finding (`raw-html-format`,
 `documents.js:104`) that the default rulesets caught.*
@@ -735,7 +742,7 @@ evidence/05-custom-rule/test-cases.js:32  POSITIVE 5: variable + concatenation (
 The three negatives stay **clean** — the rule didn't flag the correct
 parameterized query, the greeting, or the static string:
 
-![Figure 2 — project custom rule: the SQLi the defaults missed, plus all 5 generalized shapes](images/02-sast-custom-sqli.png)
+![](images/02-sast-custom-sqli.png)
 
 *Figure 2 — Real run of the project custom rule: the seeded SQLi
 (`documents.js:77`) plus all 5 generalized positive shapes, exit code 1.
@@ -868,7 +875,7 @@ Breaking it down: `--log-opts="--all"` tells git "don't just look at
 the current files — look at every commit". Expected result: exactly one
 leak, the seeded constant, in the commit that introduced it:
 
-![Figure 3 — full-history gitleaks sweep](images/03-gitleaks-full-history.png)
+![](images/03-gitleaks-full-history.png)
 
 *Figure 3 — Real full-history sweep: exactly one leak, the seeded
 constant at `src/config.js:15` in commit `685702f8`. No other secrets
@@ -903,7 +910,8 @@ found key and let AWS itself tell us if it works.
 
 The project includes `security/verify-credential.js`. It loads the found
 key straight from `src/config.js` — the exact string the scanner
-reported — configures an AWS STS client with it, and makes the call.
+reported — configures an AWS STS client with it (the AWS SDK is the
+library that speaks AWS's API), and makes the call.
 (If you look at the script you'll notice it needs *some* secret key
 field to construct the client — a clearly fake one is fine, because an
 unrecognized access key is rejected *before* anything else happens.)
@@ -954,7 +962,7 @@ VERDICT: NOT LIVE — AWS rejected the token (error code: InvalidClientTokenId)
 **The key is inert.** It matches every pattern, and AWS itself says it
 doesn't exist in its identity service:
 
-![Figure 4 — live secret verification](images/04-live-verification.png)
+![](images/04-live-verification.png)
 
 *Figure 4 — Real network call to AWS `sts:GetCallerIdentity` against the
 found key. The error code `InvalidClientTokenId` is AWS's own verdict:
@@ -1118,7 +1126,7 @@ Expected result — **0 findings, exit code 0**:
 Ran 1 rule on 7 files: 0 findings.
 ```
 
-![Figure 5 — SAST rerun after the fixes](images/05-rerun-clean.png)
+![](images/05-rerun-clean.png)
 
 *Figure 5 — Real rerun after the fixes: the custom rule reports
 0 findings, exit 0. The SQL injection finding is gone.*
@@ -1155,7 +1163,7 @@ waiting for exactly this project. I added two enforcement jobs:
 
 Pushed `main`. CI: `build-and-test` ✅, `sast` ✅, `secrets-scan` ✅:
 
-![Figure 6 — CI on main, all jobs green](images/06-ci-main-green.png)
+![](images/06-ci-main-green.png)
 
 *Figure 6 — Real GitHub Actions run on `main`: all three jobs green.*
 
@@ -1174,7 +1182,8 @@ live forever") in the flesh. The correct response: **rewrite the history
 so it never existed**. I amended the evidence commit (replaced the
 script file, kept the message), rebased the follow-up commits on top,
 verified locally that the full-history scan was clean, and force-pushed
-the rewritten `main`. (Safe here: private repo, no collaborators,
+(overwrote the remote history with) the rewritten `main`. (Safe here:
+private repo, no collaborators,
 minutes old.) Run 2: all green.
 
 ### Step 12.4 — Run 2: red on the violation branch (the deliverable)
@@ -1182,7 +1191,8 @@ minutes old.) Run 2: all green.
 Then the actual proof. From clean `main`, a test branch
 `project1-violation-test` carrying a **fresh** seeded violation — a new
 SQL string concatenation (`src/routes/legacy.js`) and a new
-credential-shaped constant (`src/legacy-config.js`) — opened as a PR:
+credential-shaped constant (`src/legacy-config.js`) — opened as a PR
+(pull request — a proposed change, reviewed before merging):
 
 ```
 X sast           → semgrep.rules.docutrust-unsafe-sql-interpolation: Findings: 2 (2 blocking)
@@ -1192,7 +1202,7 @@ X secrets-scan   → WRN leaks found: 1
 
 Screenshot: `docs/images/07-ci-violation-red.png`.
 
-![Figure 7 — CI on the violation PR: both gates blocked it](images/07-ci-violation-red.png)
+![](images/07-ci-violation-red.png)
 
 *Figure 7 — Real GitHub Actions run on the seeded violation PR: `sast`
 and `secrets-scan` both failed with exit code 1 while `build-and-test`
@@ -1217,6 +1227,23 @@ the deliberately outdated `lodash@4.17.15` pin (confirmed by
 `npm audit`: prototype pollution, command injection, ReDoS), the one
 `_.cloneDeep` usage it exists for, and where the SCA stage slots into
 the same pipeline.
+
+---
+
+## If something goes wrong
+
+A quick reference for the traps scattered through this walkthrough — the
+full explanation lives at the step named in each row:
+
+| If you see this | What it means and what to do |
+|:---|:---|
+| `command not found` | The tool isn't installed (or not on your `PATH`). Go back to its install step: Node/npm — Step 1.2, PostgreSQL — Step 1.3, semgrep — Step 1.4, gitleaks — Step 1.5. |
+| `docker ps` doesn't print a table of containers | The Docker service probably isn't running. Start it with `sudo service docker start` (Step 1.3, Path A). |
+| `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` | `DATABASE_URL` never reached Node. Re-run the load line: `set -a && source .env.local && set +a` (Step 2.4). |
+| `already exists` from the database setup commands | The database/user already exists — that's success, move on (Step 2.1). |
+| A different `id` in the responses than in the examples | Expected — the server assigns ids as it goes. Use the id your server returned (Step 3.2). |
+| `Migrations up to date` without an "Applying …" line | The tables already exist — success (Step 2.5). |
+| `INF no leaks found` from gitleaks | You're on a gitleaks version whose default rule skips low-entropy keys. The project config (`gitleaks.toml`) catches it anyway (Step 7.2). |
 
 ---
 
