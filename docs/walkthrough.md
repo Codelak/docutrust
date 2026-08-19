@@ -11,12 +11,12 @@ The guide assumes a Bash terminal (macOS, Linux, or WSL2 on Windows).*
 
 This repo holds the **finished** Project 1 — on `main`, both bugs are
 already fixed and the CI gate already exists. To do the project
-yourself, start on the `starter` branch instead: it is the same app
+yourself, start on the `project1-starter` branch instead: it is the same app
 *before* the fixes, exactly as this guide assumes, and it carries
 this walkthrough with it:
 
 ```bash
-git checkout starter
+git checkout project1-starter
 ```
 
 Work through Stages 1–11 there. For Stage 12 (the CI gate), come back
