@@ -7,6 +7,28 @@ The guide assumes a Bash terminal (macOS, Linux, or WSL2 on Windows).*
 
 ---
 
+## Starting from this repo (not from the course handout)?
+
+This repo holds the **finished** Project 1 — on `main`, both bugs are
+already fixed and the CI gate already exists. To do the project
+yourself, start on the `starter` branch instead: it is the same app
+*before* the fixes, exactly as this guide assumes, and it carries
+this walkthrough with it:
+
+```bash
+git checkout starter
+```
+
+Work through Stages 1–11 there. For Stage 12 (the CI gate), come back
+to `main` — it holds the finished CI config — and push to **your own
+GitHub fork** so GitHub Actions runs for you:
+
+```bash
+git checkout main
+```
+
+---
+
 ## The project in one paragraph (read this first)
 
 You are given an app — **DocuTrust**, a small web API (a program other
