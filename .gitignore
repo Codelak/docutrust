@@ -4,3 +4,9 @@ node_modules
 *.log
 timeout-*
 crash-*
+
+# graft local graph cache — regenerable, not committed.
+graft/
+
+# local Claude Code config — machine-local, not committed.
+.claude/
