@@ -1,0 +1,10 @@
+=== Control: same lookup WITHOUT the scoping (scope pointed at the public registry) ===
+=== npm view @docutrust/shared --@docutrust:registry=https://registry.npmjs.org/ ===
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@docutrust%2fshared - Not found
+npm error 404
+npm error 404  '@docutrust/shared@*' is not in this registry.
+npm error 404
+
+=== Why this matters: if a squat existed here, npm would install it silently ===
+=== npm does not distinguish 'internal-looking' from 'public' — the .npmrc does that ===

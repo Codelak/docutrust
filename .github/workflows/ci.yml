@@ -58,3 +58,84 @@ jobs:
       - name: Run secrets scan (project config, full history)
         run: |
           gitleaks detect --source . -c gitleaks.toml --log-opts="--all" --no-banner
+
+  # DevSecOps Project 2 (SCA): dependency gates. Enforced policy is
+  # docs/project-2/sca-policy.md. Two independent checks:
+  #
+  #   1. npm audit      — fails on any HIGH/CRITICAL advisory in the
+  #                       installed tree (direct AND transitive).
+  #   2. Scorecard gate — any dependency NEW in this branch (not in
+  #                       package.json on main) must score >= 5/10 on
+  #                       the OpenSSF Scorecard of its source repo, or
+  #                       be documented by the maintainer. Catches
+  #                       abandoned/malicious packages a CVE lookup
+  #                       misses.
+  #
+  # How to read the scorecard step, line by line:
+  #   git show origin/main:package.json   -> the dependency list on main
+  #   jq -r '.dependencies + .devDependencies | keys[]'  -> sorted names
+  #   comm -13 <(main) <(now)             -> names ONLY in the new list
+  #   scorecard --npm <pkg> --format json -> official scorecard CLI,
+  #                                          scores the package's repo
+  #   jq -r '.score'                      -> the aggregate 0-10 score
+  sca:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit gate (policy §1 — high/critical blocks)
+        run: npm audit --audit-level=high
+
+      - name: Install OpenSSF Scorecard
+        run: |
+          curl -sL https://github.com/ossf/scorecard/releases/download/v5.5.0/scorecard_5.5.0_linux_amd64.tar.gz -o scorecard.tar.gz
+          tar -xzf scorecard.tar.gz scorecard
+          sudo mv scorecard /usr/local/bin/
+
+      - name: Scorecard gate — new dependencies must score >= 5/10 (policy §5)
+        env:
+          GITHUB_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          threshold=5
+
+          # 1. Which dependencies are NEW in this branch?
+          base="$(git show origin/main:package.json 2>/dev/null \
+                    | jq -r '.dependencies + .devDependencies | keys[]' || true)"
+          now="$(jq -r '.dependencies + .devDependencies | keys[]' package.json)"
+          new_deps="$(comm -13 <(printf '%s\n' "$base") <(printf '%s\n' "$now"))"
+
+          if [ -z "$new_deps" ]; then
+            echo "scorecard gate: no new dependencies vs main — pass"
+            exit 0
+          fi
+          echo "scorecard gate: scoring new dependencies:"
+          echo "$new_deps" | sed 's/^/  - /'
+
+          # 2. Score each new dependency with the official scorecard CLI.
+          failed=0
+          for dep in $new_deps; do
+            score="$(scorecard --npm "$dep" --format json | jq -r '.score')"
+            if [ "$score" = "null" ]; then
+              echo "  FAIL  $dep — no score obtainable: manual review required (policy §5)"
+              failed=1
+            elif awk -v s="$score" -v t="$threshold" 'BEGIN { exit !(s >= t) }'; then
+              echo "  PASS  $dep — score $score"
+            else
+              echo "  FAIL  $dep — score $score below threshold $threshold (policy §5)"
+              failed=1
+            fi
+          done
+
+          [ "$failed" = 0 ] || { echo "scorecard gate FAILED — docs/project-2/sca-policy.md §5"; exit 1; }
+          echo "scorecard gate: pass"

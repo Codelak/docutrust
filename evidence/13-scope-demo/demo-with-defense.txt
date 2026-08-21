@@ -1,0 +1,12 @@
+=== 1. Scoping active — where does npm resolve @docutrust/*? ===
+https://npm.docutrust.internal/
+
+=== 2. Attempt to resolve an internal-sounding package, WITH the defense ===
+npm error code ENOTFOUND
+npm error syscall getaddrinfo
+npm error errno ENOTFOUND
+npm error network request to https://npm.docutrust.internal/@docutrust%2fshared failed, reason: getaddrinfo ENOTFOUND npm.docutrust.internal
+
+=== 3. Control: normal resolution is unaffected ===
+4.18.1
+

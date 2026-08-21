@@ -1,0 +1,6 @@
+=== Smoke test after lodash 4.17.15 -> 4.18.1 (app restarted) ===
+
+--- POST /documents (the _.cloneDeep route)
+{"id":8,"title":"S3 smoke test","body":"created after the lodash upgrade","created_at":"2026-08-21T00:14:01.931Z"}
+--- GET /documents/:id
+{"id":9,"title":"S3 smoke 2","body":"round trip","created_at":"2026-08-21T00:14:02.022Z"}

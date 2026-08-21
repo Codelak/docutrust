@@ -1,0 +1,11 @@
+=== 1. The naive attempt: npm audit fix (no --force) ===
+
+1 high severity vulnerability
+
+To address all issues, run:
+  npm audit fix --force
+
+=== still vulnerable? ===
+
+To address all issues, run:
+  npm audit fix --force

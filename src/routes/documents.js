@@ -19,12 +19,12 @@ router.post("/", async (req, res) => {
     );
     // lodash used here for a real, if minor, purpose: a deep clone
     // before returning, so callers can't accidentally mutate a cached
-    // reference. This is the app's one real use of the intentionally
-    // outdated lodash@4.17.15 pin, see package.json and Project 2's
-    // brief. `npm audit` confirms multiple real, disclosed advisories
-    // against this exact pinned version (prototype pollution, command
-    // injection, ReDoS), a genuine, live SCA finding, not a dependency
-    // added purely for show.
+    // reference. The original lodash@4.17.15 exact pin was the seeded
+    // finding for Project 2 (SCA): npm audit flagged 6 advisories
+    // against it (prototype pollution, command injection, ReDoS).
+    // Remediated in Project 2 to lodash@4.18.1 (exact pin, same API),
+    // verified by a clean rescan and a live smoke test — see
+    // evidence/12-lodash-fix/ and docs/project-2/sca-policy.md.
     const doc = _.cloneDeep(result.rows[0]);
     res.status(201).json(doc);
   } catch (err) {

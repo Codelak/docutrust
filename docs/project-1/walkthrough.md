@@ -877,7 +877,7 @@ Allowlisting documented references — with the reason written down — is
 a fresh key anywhere else is still flagged.
 
 > **Note for you running this today:** the project's later docs
-> (`docs/walkthrough.md`, `docs/final-findings-report.md`) also quote
+> (`docs/project-1/walkthrough.md`, `docs/project-1/final-findings-report.md`) also quote
 > the key, and the allowlist predates them — so a fresh run may report
 > ~6 hits, all of them documentation, not secrets. That's the same
 > triage call in action. The verdict on the real finding is unchanged.
@@ -1222,7 +1222,7 @@ X secrets-scan   → WRN leaks found: 1
 ✓ build-and-test
 ```
 
-Screenshot: `docs/images/07-ci-violation-red.png`.
+Screenshot: `docs/project-1/images/07-ci-violation-red.png`.
 
 ![](images/07-ci-violation-red.png)
 
@@ -1242,7 +1242,7 @@ doesn't.
 
 ## Stage 13 — The final report
 
-`docs/final-findings-report.md` ties it together for the track: every
+`docs/project-1/final-findings-report.md` ties it together for the track: every
 finding with its cosmetic-or-exploitable verdict, what the live check
 proved, what CI now enforces — plus the handoff to Project 2 (SCA):
 the deliberately outdated `lodash@4.17.15` pin (confirmed by
@@ -1296,5 +1296,5 @@ full explanation lives at the step named in each row:
 | `evidence/07-live-verification/` | 6 — live check: `InvalidClientTokenId` |
 | `evidence/08-fixed-rerun/` | 7 — fixes, runtime proof, clean rerun, FP triage |
 | `evidence/09-ci-gate/` | 9 — gate caught our literal; violation PR blocked |
-| `docs/final-findings-report.md` | 10 — report + Project 2 handoff |
-| `docs/images/` | Figures 1–7 — visual captures of the real tool outputs |
+| `docs/project-1/final-findings-report.md` | 10 — report + Project 2 handoff |
+| `docs/project-1/images/` | Figures 1–7 — visual captures of the real tool outputs |

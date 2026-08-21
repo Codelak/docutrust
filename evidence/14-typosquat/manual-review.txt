@@ -1,0 +1,84 @@
+Manual typosquat review — real npm view probes, 2026-08-21
+Probe: npm view <name> version time.created maintainers
+A squat looks like: published AFTER the original, few versions,
+unknown maintainer, or renamed 0.0.1-security (npm takedown).
+
+## express (2010) — squatters typo it as: expresss, express1, js-express
+### npm view expresss
+version = '0.0.0'
+time.created = '2016-08-15T18:34:04.884Z'
+maintainers = 'davidribyrne <davidribyrne@gmail.com>'
+### npm view express1
+version = '1.0.0'
+time.created = '2019-11-01T08:32:21.319Z'
+maintainers = 'guowujuan0825 <2683022357@qq.com>'
+### npm view js-express (created 2026-04 — is it still live?)
+npm error code E404
+npm error 404 Unpublished on 2026-04-03T11:30:31.787Z
+npm error 404
+npm error 404  'js-express' is not in this registry.
+### npm view xpress (a real alt framework, for the legit-vs-squat judgment)
+version = '2.4.6'
+time.created = '2016-04-23T14:23:05.110Z'
+maintainers = 'synder <812256717@qq.com>'
+
+## lodash (2012) — squatters typo it as: lodashs, lodash-package, loodash, loadsh
+### npm view lodashs
+npm error code E404
+npm error 404 Unpublished on 2020-08-25T07:02:23.284Z
+npm error 404
+npm error 404  'lodashs' is not in this registry.
+### npm view lodash-package
+version = '1.0.0'
+time.created = '2024-02-01T04:28:41.584Z'
+maintainers = 'deepsingla022 <deepsingla022@gmail.com>'
+### npm view loodash
+version = '2.0.0'
+time.created = '2021-02-09T02:19:41.355Z'
+maintainers = 'mylesborins <myles.borins@gmail.com>'
+### npm view loadsh (the classic documented lodash squat)
+version = '0.0.4'
+time.created = '2018-09-13T06:41:39.649Z'
+maintainers = 'atool <vip@hust.edu.cn>'
+
+## zod (2020) — squatters typo it as: zod-js, zods
+### npm view zod-js
+version = '0.0.1-security'
+time.created = '2026-01-19T00:45:39.372Z'
+maintainers = undefined
+### npm view zods
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/zods - Not found
+npm error 404
+
+## pg (2010) — squatters typo it as: pg1, js-pg, pgs
+### npm view pg1
+npm error code E404
+npm error 404 Unpublished on 2023-06-29T05:24:36.241Z
+npm error 404
+npm error 404  'pg1' is not in this registry.
+### npm view js-pg
+version = '1.0.0'
+time.created = '2017-09-17T01:52:39.026Z'
+maintainers = 'zhadaolong <daolongzha@gmail.com>'
+### npm view pgs
+version = '0.0.7'
+time.created = '2016-11-29T18:10:01.796Z'
+maintainers = 'mitbots <bot@mit.com.mx>'
+## our own internal scope @docutrust on the PUBLIC registry (scope overridden)
+### why: an attacker squatting OUR namespace is the confusion-attack scenario from S5
+--- npm view @docutrust/shared
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@docutrust%2fshared - Not found
+--- npm view @docutrust/utils
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@docutrust%2futils - Not found
+--- npm view @docutrust/config
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@docutrust%2fconfig - Not found
+--- npm view @docutrust/core
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@docutrust%2fcore - Not found
+--- npm view @docutrust/auth
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@docutrust%2fauth - Not found

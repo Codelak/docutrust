@@ -1,0 +1,10 @@
+== express ==
+score: 8.2 repo: github.com/expressjs/express
+== pg ==
+score: 5.7 repo: github.com/brianc/node-postgres
+== zod ==
+score: 5.3 repo: github.com/colinhacks/zod
+== lodash ==
+score: 6.8 repo: github.com/lodash/lodash
+== @jazzer.js/core ==
+score: 6 repo: github.com/CodeIntelligenceTesting/jazzer.js

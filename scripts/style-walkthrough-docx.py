@@ -11,7 +11,7 @@ to its md code block by text (a paragraph never spans two blocks); ```bash
 blocks mark commands.
 
 Usage: pandoc walkthrough.md -o walkthrough.docx --toc --toc-depth=2
-       python3 scripts/style-walkthrough-docx.py docs/walkthrough.docx
+       python3 scripts/style-walkthrough-docx.py docs/project-1/walkthrough.docx
 """
 import os
 import sys
@@ -281,4 +281,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs/walkthrough.docx")
+    main(sys.argv[1] if len(sys.argv) > 1 else "docs/project-1/walkthrough.docx")

@@ -75,27 +75,27 @@ GREEN = (98, 200, 120)
 RED   = (232, 92, 104)
 
 render("evidence/01-sast-default/semgrep-owasp-javascript.txt",
-       "docs/images/01-sast-default-xss.png",
+       "docs/project-1/images/01-sast-default-xss.png",
        "semgrep --config=p/owasp-top-ten --config=p/javascript src/",
        "Default rulesets — the XSS finding (deliverables 1 & 3) · exit 0, 1 finding", AMBER)
 
 render("evidence/05-custom-rule/run.txt",
-       "docs/images/02-sast-custom-sqli.png",
+       "docs/project-1/images/02-sast-custom-sqli.png",
        "semgrep --config=semgrep/rules/ --error src/ test-cases.js",
        "Project custom rule — the SQLi the defaults missed + 5 generalized shapes (deliverables 2 & 4) · exit 1", AMBER)
 
 render_if_exists("evidence/06-secrets/full-history-sweep.txt",
-       "docs/images/03-gitleaks-full-history.png",
+       "docs/project-1/images/03-gitleaks-full-history.png",
        "gitleaks detect -c gitleaks.toml --log-opts=\"--all\"",
        "Full-history secrets sweep — the seeded key, exactly one leak (deliverables 5 & 8) · exit 1", AMBER)
 
 render("evidence/07-live-verification/07-live-verification.txt",
-       "docs/images/04-live-verification.png",
+       "docs/project-1/images/04-live-verification.png",
        "node security/verify-credential.js",
        "Live check — sts:GetCallerIdentity against the found key (deliverable 6) · verdict: NOT LIVE", GREEN)
 
 render("evidence/08-fixed-rerun/semgrep-custom.txt",
-       "docs/images/05-rerun-clean.png",
+       "docs/project-1/images/05-rerun-clean.png",
        "semgrep --config=semgrep/rules/ --error src/  (after fixes)",
        "Deliverable 7 rerun — 0 findings, exit 0", GREEN)
 
@@ -103,11 +103,47 @@ render("evidence/08-fixed-rerun/semgrep-custom.txt",
 # main run happened on the pre-rename account). Regenerate it by saving a
 # fresh green run's view: gh run view <id> > evidence/09-ci-gate/run2-main-GREEN.txt
 render_if_exists("evidence/09-ci-gate/run2-main-GREEN.txt",
-       "docs/images/06-ci-main-green.png",
+       "docs/project-1/images/06-ci-main-green.png",
        "gh run view — CI on main (fixed code)",
        "All three jobs green: build-and-test, sast, secrets-scan (deliverable 9)", GREEN)
 
 render("evidence/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt",
-       "docs/images/07-ci-violation-red.png",
+       "docs/project-1/images/07-ci-violation-red.png",
        "gh run view — CI on the seeded violation PR",
        "Both gates blocked it: sast exit 1, secrets-scan exit 1 (deliverable 9)", RED)
+
+# ─────────────────────────────────────────────────────────────────────
+# Project 2 (SCA, Dependency Confusion, Scorecard) — figures 08-15.
+# Sources are real captures under evidence/10..16-*, written during the
+# project's stages; every figure below is the actual tool output.
+# ─────────────────────────────────────────────────────────────────────
+
+render("evidence/10-sca-baseline/npm-audit.txt",
+       "docs/project-2/images/08-npm-audit-finding.png",
+       "npm audit",
+       "S1 — full SCA scan: the seeded lodash finding, 1 high, 6 advisories (D1)", RED)
+
+render("evidence/11-transitive-review/npm-ls-depth1.txt",
+       "docs/project-2/images/09-npm-ls-tree.png",
+       "npm ls --depth=1",
+       "S2 — direct deps + one transitive layer; lodash the only leaf with a finding (D2)", AMBER)
+
+render("evidence/12-lodash-fix/npm-install-and-rescan.txt",
+       "docs/project-2/images/10-lodash-fix-clean.png",
+       "npm install lodash@4.18.1 --save-exact  &&  npm audit",
+       "S3 — remediated: exact pin 4.18.1, rescan 0 vulnerabilities (D3)", GREEN)
+
+render("evidence/13-scope-demo/demo-with-defense.txt",
+       "docs/project-2/images/11-scope-demo.png",
+       "npm config get @docutrust:registry  &&  npm view @docutrust/shared",
+       "S5 — confusion defense live: scoped resolution fails against the private host, never npmjs (D5)", GREEN)
+
+render("evidence/14-typosquat/manual-review.txt",
+       "docs/project-2/images/12-typosquat-probes.png",
+       "npm view <near-variant> version time.created maintainers",
+       "S6 — manual typosquat probes: 8 of 14 near-variants exist, none in our tree; zod-js = npm security takedown (D6)", AMBER)
+
+render("evidence/15-scorecard/scorecard-default.txt",
+       "docs/project-2/images/13-scorecard-repo.png",
+       "scorecard --repo github.com/Codelak/docutrust",
+       "S7 — OpenSSF Scorecard: aggregate 2.6/10, all 18 checks read in evidence/15-scorecard (D7)", AMBER)
