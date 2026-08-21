@@ -1,0 +1,39 @@
+
+X seed-risky-dep CI #1 · 32432495761
+Triggered via pull_request less than a minute ago
+
+JOBS
+X sca in 30s (ID 96626882515)
+  ✓ Set up job
+  ✓ Run actions/checkout@v4
+  ✓ Setup Node
+  ✓ Install dependencies
+  ✓ npm audit gate (policy §1 — high/critical blocks)
+  ✓ Install OpenSSF Scorecard
+  X Scorecard gate — new dependencies must score >= 5/10 (policy §5)
+  - Post Setup Node
+  ✓ Post Run actions/checkout@v4
+  ✓ Complete job
+✓ sast in 24s (ID 96626882688)
+✓ secrets-scan in 8s (ID 96626882702)
+✓ build-and-test in 25s (ID 96626882802)
+
+ANNOTATIONS
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+sca: .github#2
+
+X Process completed with exit code 1.
+sca: .github#43
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+sast: .github#2
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+secrets-scan: .github#2
+
+! Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+build-and-test: .github#2
+
+
+To see what failed, try: gh run view 32432495761 --log-failed
+View this run on GitHub: https://github.com/Codelak/docutrust/actions/runs/32432495761

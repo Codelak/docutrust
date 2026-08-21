@@ -147,3 +147,13 @@ render("evidence/15-scorecard/scorecard-default.txt",
        "docs/project-2/images/13-scorecard-repo.png",
        "scorecard --repo github.com/Codelak/docutrust",
        "S7 — OpenSSF Scorecard: aggregate 2.6/10, all 18 checks read in evidence/15-scorecard (D7)", AMBER)
+
+render("evidence/16-ci-gates/run-main-GREEN.txt",
+       "docs/project-2/images/14-ci-main-green.png",
+       "gh run view — CI on main with the new sca job",
+       "S8 — all four jobs green: build-and-test, sast, secrets-scan, sca (D8)", GREEN)
+
+render("evidence/16-ci-gates/run-seeded-PR-FAILED.txt",
+       "docs/project-2/images/15-seeded-pr-blocked.png",
+       "gh run view — CI on the seeded dependency PR",
+       "S9 — the gate blocks: sca failed on left-pad score 4.2 < 5 (D9); PR closed, branch deleted", RED)

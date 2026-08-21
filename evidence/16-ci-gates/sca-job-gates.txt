@@ -1,0 +1,8 @@
+sca	Install dependencies	2026-08-21T00:22:24.0565590Z found 0 vulnerabilities
+sca	npm audit gate (policy §1 — high/critical blocks)	﻿2026-08-21T00:22:24.0715866Z ##[group]Run npm audit --audit-level=high
+sca	npm audit gate (policy §1 — high/critical blocks)	2026-08-21T00:22:24.0716293Z [36;1mnpm audit --audit-level=high[0m
+sca	npm audit gate (policy §1 — high/critical blocks)	2026-08-21T00:22:24.0758360Z shell: /usr/bin/bash -e {0}
+sca	npm audit gate (policy §1 — high/critical blocks)	2026-08-21T00:22:24.0758650Z ##[endgroup]
+sca	npm audit gate (policy §1 — high/critical blocks)	2026-08-21T00:22:25.1617163Z found 0 vulnerabilities
+sca	Scorecard gate — new dependencies must score >= 5/10 (policy §5)	2026-08-21T00:22:26.3505515Z [36;1m  echo "scorecard gate: no new dependencies vs main — pass"[0m
+sca	Scorecard gate — new dependencies must score >= 5/10 (policy §5)	2026-08-21T00:22:26.3506363Z [36;1mecho "scorecard gate: scoring new dependencies:"[0m
