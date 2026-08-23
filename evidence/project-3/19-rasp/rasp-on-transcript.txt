@@ -1,0 +1,17 @@
+=== DocuTrust RASP ON (DOCUTRUST_RASP=1, vulnerable test build) ===
+$ curl "localhost:3000/documents/search?q=' OR 1=1 --"
+{"error":"blocked by DocuTrust RASP: SQL injection","pattern":"['\"]\\s*OR\\s+['\"]?\\d*['\"]?\\s*=\\s*['\"]?\\d*['\"]?"} [HTTP 403]
+
+$ curl -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"<script>alert(1)</script>","body":"xss"}'
+{"error":"blocked by DocuTrust RASP: cross-site scripting","pattern":"<script[\\s>]"} [HTTP 403]
+
+--- benign controls pass untouched ---
+$ curl "localhost:3000/documents/search?q=quarterly"
+[{"id":4,"title":"Quarterly Report"}] [HTTP 200]
+
+$ curl -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"Quarterly Board Deck","body":"normal content"}'
+{"id":22,"title":"Quarterly Board Deck","body":"normal content","created_at":"..."} [HTTP 201]
+
+--- app log ---
+[RASP] BLOCKED GET /documents/search?q='%20OR%201=1%20-- — SQL injection (pattern: /['"]\s*OR\s+['"]?\d*['"]?\s*=\s*['"]?\d*['"]?/)
+[RASP] BLOCKED POST /documents — cross-site scripting (pattern: /<script[\s>]/)

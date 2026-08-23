@@ -1,0 +1,12 @@
+=== DocuTrust RASP OFF (control: DOCUTRUST_RASP unset, vulnerable test build) ===
+$ curl "localhost:3000/documents/search?q=' OR 1=1 --"
+[{"id":1,"title":"vm test"},{"id":2,"title":"vm test"},...,{"id":23,"title":"<script>alert(1</script>"}] [HTTP 200]
+-- the SQLi payload dumps the whole documents table --
+
+$ curl -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"<script>alert(1)</script>","body":"xss control"}'
+{"id":23,"title":"<script>alert(1)</script>","body":"xss control","created_at":"..."} [HTTP 201]
+-- the XSS payload is stored and later served unescaped by /documents/23/render --
+
+The identical payloads that RASP answered 403 for reach the vulnerable
+sinks when RASP is disabled: proof the blocking is RASP's work, not the
+application's.

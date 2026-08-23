@@ -2,12 +2,21 @@ const express = require("express");
 const { pool } = require("./db");
 const documentsRouter = require("./routes/documents");
 const iast = require("./lib/iast");
+const rasp = require("./lib/rasp");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_VERSION = process.env.APP_VERSION || "dev";
 
 app.use(express.json());
+
+// RASP (DevSecOps Project 3, deliverable 6): active only when
+// DOCUTRUST_RASP=1; disable by unsetting it. Mounted before the routes,
+// so a blocked payload never reaches the vulnerable code. Pattern-based,
+// illustrative — see src/lib/rasp.js for the honest scope statement.
+if (rasp.ENABLED) {
+  app.use(rasp.middleware());
+}
 
 // IAST instrumentation (DevSecOps Project 3, deliverable 4): active only
 // when DOCUTRUST_IAST=1. Sources middleware marks query/body values as
