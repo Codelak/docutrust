@@ -732,7 +732,7 @@ before fixing.)*
 
 A rule that only matches the one seeded line "has not actually
 generalized the pattern" — that's a direct requirement of the brief. So
-I wrote a throwaway test file, `evidence/05-custom-rule/test-cases.js`,
+I wrote a throwaway test file, `evidence/project-1/05-custom-rule/test-cases.js`,
 containing **5 positive shapes** (all four branches plus an UPDATE
 variant) and **3 negative shapes** (a correct parameterized query, a
 non-SQL interpolated greeting, a static SQL string). The negatives are
@@ -740,7 +740,7 @@ the proof you understand the difference between a vulnerability and the
 *shape* of the code.
 
 ```bash
-semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-rule/test-cases.js
+semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/project-1/05-custom-rule/test-cases.js
 ```
 
 Breaking it down:
@@ -749,16 +749,16 @@ Breaking it down:
 |:---|:---|
 | `--config semgrep/rules/` | use *our* rule file |
 | `--error` | "exit with a non-zero code if any finding" — this is how scripts and CI know a scan failed |
-| `src/ evidence/05-custom-rule/test-cases.js` | scan the app *and* the test file |
+| `src/ evidence/project-1/05-custom-rule/test-cases.js` | scan the app *and* the test file |
 
 Expected result — exit code 1, 6 findings, all of them in the test file:
 
 ```
-evidence/05-custom-rule/test-cases.js:8   POSITIVE 1: direct interpolated call
-evidence/05-custom-rule/test-cases.js:14  POSITIVE 2: direct concatenation
-evidence/05-custom-rule/test-cases.js:21  POSITIVE 3: variable + template literal
-evidence/05-custom-rule/test-cases.js:27  POSITIVE 4: UPDATE variant
-evidence/05-custom-rule/test-cases.js:32  POSITIVE 5: variable + concatenation (matched twice)
+evidence/project-1/05-custom-rule/test-cases.js:8   POSITIVE 1: direct interpolated call
+evidence/project-1/05-custom-rule/test-cases.js:14  POSITIVE 2: direct concatenation
+evidence/project-1/05-custom-rule/test-cases.js:21  POSITIVE 3: variable + template literal
+evidence/project-1/05-custom-rule/test-cases.js:27  POSITIVE 4: UPDATE variant
+evidence/project-1/05-custom-rule/test-cases.js:32  POSITIVE 5: variable + concatenation (matched twice)
 ```
 
 The three negatives stay **clean** — the rule didn't flag the correct
@@ -859,7 +859,7 @@ WRN leaks found: 1
 ```
 
 Exactly one leak: the seeded constant. (The historical output is saved
-in `evidence/06-secrets/current-tree-project-config.json`.)
+in `evidence/project-1/06-secrets/current-tree-project-config.json`.)
 
 **One more triage decision:** the key also appears in `README.md` and
 inside the `evidence/` files — *because those documents describe the
@@ -904,7 +904,7 @@ constant at `src/config.js:15` in commit `685702f8`. No other secrets
 exist in any commit.*
 
 The original run's machine-readable output is saved in
-`evidence/06-secrets/full-history.json`; the "clean elsewhere" claim is
+`evidence/project-1/06-secrets/full-history.json`; the "clean elsewhere" claim is
 *proven*, not assumed.
 
 > **Lesson 4 (the dark one):** committed secrets live forever. A secret
@@ -1159,7 +1159,7 @@ Triage: **false positive**. The rule heuristically flags *any* manual
 HTML construction with interpolation and can't model that `escapeHtml()`
 sanitizes the data — and the runtime proof above (Step 11.3) shows no
 execution is possible. I documented it instead of suppressing it
-(`evidence/08-fixed-rerun/`). That's the "cosmetic vs. genuinely
+(`evidence/project-1/08-fixed-rerun/`). That's the "cosmetic vs. genuinely
 exploitable" judgment call the brief grades.
 
 ---
@@ -1231,7 +1231,7 @@ and `secrets-scan` both failed with exit code 1 while `build-and-test`
 passed. The gates demonstrably block new violations.*
 
 **CI blocked it. Both gates red on real GitHub Actions, with real
-output** (saved in `evidence/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt`).
+output** (saved in `evidence/project-1/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt`).
 I closed the PR and deleted the branch — the gates stay; the violation
 doesn't.
 
@@ -1290,11 +1290,11 @@ full explanation lives at the step named in each row:
 
 | Evidence | Deliverable |
 |:---|:---|
-| `evidence/01-sast-default/` | 1–3 — default SAST, XSS confirmed, SQLi missed |
-| `evidence/05-custom-rule/` | 4 — custom rule + generalization proof (test-cases.js) |
-| `evidence/06-secrets/` | 5, 8 — secrets scan, full-history sweep |
-| `evidence/07-live-verification/` | 6 — live check: `InvalidClientTokenId` |
-| `evidence/08-fixed-rerun/` | 7 — fixes, runtime proof, clean rerun, FP triage |
-| `evidence/09-ci-gate/` | 9 — gate caught our literal; violation PR blocked |
+| `evidence/project-1/01-sast-default/` | 1–3 — default SAST, XSS confirmed, SQLi missed |
+| `evidence/project-1/05-custom-rule/` | 4 — custom rule + generalization proof (test-cases.js) |
+| `evidence/project-1/06-secrets/` | 5, 8 — secrets scan, full-history sweep |
+| `evidence/project-1/07-live-verification/` | 6 — live check: `InvalidClientTokenId` |
+| `evidence/project-1/08-fixed-rerun/` | 7 — fixes, runtime proof, clean rerun, FP triage |
+| `evidence/project-1/09-ci-gate/` | 9 — gate caught our literal; violation PR blocked |
 | `docs/project-1/final-findings-report.md` | 10 — report + Project 2 handoff |
 | `docs/project-1/images/` | Figures 1–7 — visual captures of the real tool outputs |

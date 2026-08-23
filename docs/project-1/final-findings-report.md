@@ -18,11 +18,11 @@ classes in CI and demonstrably blocks new violations.
 
 | # | Finding | Location | Class | Verdict | Evidence |
 |---|---|---|---|---|---|
-| 1 | SQL injection (string concat into ILIKE query) | `src/routes/documents.js:76` (pre-fix) | **Exploitable** | Fixed | `evidence/05-custom-rule/run.txt`, `evidence/08-fixed-rerun/` |
-| 2 | Reflected/stored XSS (unescaped title/body into HTML) | `src/routes/documents.js:104` (pre-fix) | **Exploitable** | Fixed | `evidence/01-sast-default/semgrep-owasp-javascript.txt` |
-| 3 | AWS-key-shaped constant `AKIAIOSFODNN7EXAMPLE` | `src/config.js:15` | **Cosmetic (inert placeholder)** | Verified inert, retained | `evidence/06-secrets/`, `evidence/07-live-verification/` |
-| 4 | `/search` route shadowed by `/:id` (endpoint unreachable) | `src/routes/documents.js` | **Functional bug (latent)** | Fixed with #1 | `evidence/01-sast-default/README.md` |
-| 5 | Verification script hardcoded the key literal (own tooling) | `security/verify-credential.js` | **Self-introduced** | Fixed (uses constant); history rewritten | `evidence/09-ci-gate/run1-*.txt` |
+| 1 | SQL injection (string concat into ILIKE query) | `src/routes/documents.js:76` (pre-fix) | **Exploitable** | Fixed | `evidence/project-1/05-custom-rule/run.txt`, `evidence/project-1/08-fixed-rerun/` |
+| 2 | Reflected/stored XSS (unescaped title/body into HTML) | `src/routes/documents.js:104` (pre-fix) | **Exploitable** | Fixed | `evidence/project-1/01-sast-default/semgrep-owasp-javascript.txt` |
+| 3 | AWS-key-shaped constant `AKIAIOSFODNN7EXAMPLE` | `src/config.js:15` | **Cosmetic (inert placeholder)** | Verified inert, retained | `evidence/project-1/06-secrets/`, `evidence/project-1/07-live-verification/` |
+| 4 | `/search` route shadowed by `/:id` (endpoint unreachable) | `src/routes/documents.js` | **Functional bug (latent)** | Fixed with #1 | `evidence/project-1/01-sast-default/README.md` |
+| 5 | Verification script hardcoded the key literal (own tooling) | `security/verify-credential.js` | **Self-introduced** | Fixed (uses constant); history rewritten | `evidence/project-1/09-ci-gate/run1-*.txt` |
 
 ## 3. Cosmetic vs genuinely exploitable — the distinction in practice
 
@@ -62,7 +62,7 @@ VERDICT: NOT LIVE — AWS rejected the token (error code: InvalidClientTokenId)
 
 A live key would have returned the caller's account ARN (HTTP 200). AWS's
 identity service rejecting it proves the constant is an inert, pattern-matched
-placeholder — cosmetic. Raw output: `evidence/07-live-verification/`.
+placeholder — cosmetic. Raw output: `evidence/project-1/07-live-verification/`.
 
 ## 5. Fixes (real code changes, SAST-rerun verified)
 
@@ -79,13 +79,13 @@ payload renders as `&lt;script&gt;...`.
 Rerun results: custom rule **0 findings** (was 1). The generic
 `raw-html-format` rule still flags the escaped render line — triaged as a
 false positive (it cannot model escaping; runtime proof confirms no
-execution possible). Documented, not suppressed: `evidence/08-fixed-rerun/`.
+execution possible). Documented, not suppressed: `evidence/project-1/08-fixed-rerun/`.
 
 ## 6. Full-history secrets sweep
 
 `gitleaks detect --log-opts="--all"` over every commit: exactly one leak —
 the seeded constant in `src/config.js` (commit `685702f8`). **No other
-secrets exist anywhere in history.** Raw output: `evidence/06-secrets/full-history.*`.
+secrets exist anywhere in history.** Raw output: `evidence/project-1/06-secrets/full-history.*`.
 
 History note: the verification script initially hardcoded the key literal;
 once committed, the full-history gate flagged it permanently. Our own
@@ -108,7 +108,7 @@ Proof (real GitHub Actions runs on `Codelak/docutrust`, private):
 | main (fixed code) | ✅ all jobs green |
 | PR `project1-violation-test` (fresh SQL concat + fresh fake key) | ❌ sast: 2 findings; secrets-scan: 1 leak |
 
-Failure logs: `evidence/09-ci-gate/`. Also captured: the gate catching our
+Failure logs: `evidence/project-1/09-ci-gate/`. Also captured: the gate catching our
 own real mistake (the script literal) before the rewrite — 
 `run1-main-FAILED-gate-caught-real-literal.txt`.
 

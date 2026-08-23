@@ -24,7 +24,7 @@ router.post("/", async (req, res) => {
     // against it (prototype pollution, command injection, ReDoS).
     // Remediated in Project 2 to lodash@4.18.1 (exact pin, same API),
     // verified by a clean rescan and a live smoke test — see
-    // evidence/12-lodash-fix/ and docs/project-2/sca-policy.md.
+    // evidence/project-2/12-lodash-fix/ and docs/project-2/sca-policy.md.
     const doc = _.cloneDeep(result.rows[0]);
     res.status(201).json(doc);
   } catch (err) {

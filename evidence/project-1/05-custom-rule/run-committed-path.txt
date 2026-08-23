@@ -24,7 +24,7 @@ Ran 1 rule on 8 files: 6 findings.
 │ 6 Code Findings │
 └─────────────────┘
                                          
-    evidence/05-custom-rule/test-cases.js
+    evidence/project-1/05-custom-rule/test-cases.js
    ❯❯❱ semgrep.rules.docutrust-unsafe-sql-interpolation
           ❰❰ Blocking ❱❱
           A SQL query string is built with template-literal interpolation (${...}) or string concatenation

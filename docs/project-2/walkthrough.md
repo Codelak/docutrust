@@ -263,7 +263,7 @@ curl -X POST http://localhost:3000/documents \
 Real response: `{"id":8,"title":"smoke","body":"after upgrade",...}` — 201,
 deep-cloned row returned. The fix is verified end to end.
 
-(Full before/after captures: `evidence/12-lodash-fix/`.)
+(Full before/after captures: `evidence/project-2/12-lodash-fix/`.)
 
 **Troubleshooting.**
 
@@ -378,7 +378,7 @@ The probe that answers "does this name exist, who owns it, since when":
 npm view <name> version time.created maintainers
 ```
 
-Real probes and verdicts (all captured in `evidence/14-typosquat/`):
+Real probes and verdicts (all captured in `evidence/project-2/14-typosquat/`):
 
 | Probe | What came back | Verdict |
 |---|---|---|
@@ -467,7 +467,7 @@ applicable. Reading it properly, the zeros split into three honest groups:
    gates are real; this particular lens cannot see them. **A score is a
    lens, not the truth.**
 
-The full per-check reading is in `evidence/15-scorecard/README.md`.
+The full per-check reading is in `evidence/project-2/15-scorecard/README.md`.
 
 **Troubleshooting.**
 
@@ -568,7 +568,7 @@ npm audit gate (policy §1)    -> found 0 vulnerabilities
 Scorecard gate (policy §5)    -> no new dependencies vs main — pass
 ```
 
-(Full log: `evidence/16-ci-gates/`.)
+(Full log: `evidence/project-2/16-ci-gates/`.)
 
 **Troubleshooting.**
 
@@ -681,15 +681,15 @@ runtime conclusions will stand on.
 
 | Stage | Deliverable | Evidence |
 |:---|:---|:---|
-| 2 | 1 — full SCA scan, real output | `evidence/10-sca-baseline/` |
-| 3 | 2 — transitive review, specific packages named | `evidence/11-transitive-review/` |
-| 4 | 3 — lodash remediated, rescan clean, smoke-tested | `evidence/12-lodash-fix/` |
+| 2 | 1 — full SCA scan, real output | `evidence/project-2/10-sca-baseline/` |
+| 3 | 2 — transitive review, specific packages named | `evidence/project-2/11-transitive-review/` |
+| 4 | 3 — lodash remediated, rescan clean, smoke-tested | `evidence/project-2/12-lodash-fix/` |
 | 5 | 4 — SCA policy, checkable thresholds | `docs/project-2/sca-policy.md` |
-| 6 | 5 — confusion defense configured + demonstrated | `evidence/13-scope-demo/` |
-| 7 | 6 — typosquat review, genuine findings | `evidence/14-typosquat/` |
-| 8 | 7 — scorecard run, every check read | `evidence/15-scorecard/` |
-| 9 | 8 — scorecard policy enforced in CI | `evidence/16-ci-gates/` |
-| 10 | 9 — seeded dep blocked before merge | `evidence/16-ci-gates/run-seeded-PR-FAILED.txt` |
+| 6 | 5 — confusion defense configured + demonstrated | `evidence/project-2/13-scope-demo/` |
+| 7 | 6 — typosquat review, genuine findings | `evidence/project-2/14-typosquat/` |
+| 8 | 7 — scorecard run, every check read | `evidence/project-2/15-scorecard/` |
+| 9 | 8 — scorecard policy enforced in CI | `evidence/project-2/16-ci-gates/` |
+| 10 | 9 — seeded dep blocked before merge | `evidence/project-2/16-ci-gates/run-seeded-PR-FAILED.txt` |
 | 11 | 10 — final dependency risk report | `docs/project-2/final-findings-report.md` |
 | 1–11 | screenshots 08–15 | `docs/project-2/images/` |
 

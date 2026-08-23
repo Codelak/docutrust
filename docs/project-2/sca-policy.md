@@ -4,7 +4,7 @@
 **Scope:** every package DocuTrust installs — direct and transitive,
 production and development — as resolved by the npm lockfile.
 **Status:** enforced in CI (`.github/workflows/ci.yml`, job `sca`,
-wired in S8), evidence in `evidence/16-ci-gates/`.
+wired in S8), evidence in `evidence/project-2/16-ci-gates/`.
 
 ## 1. Threshold: what blocks a build
 
@@ -24,7 +24,7 @@ npm audit --audit-level=high
 Severity is the advisory severity assigned in the npm advisory
 database (per CVE/GHSA), not our estimate. Project 1's seeded lodash
 pin was the standing example: `4.17.15` (1 high, 6 advisories) →
-`4.18.1` (0 vulnerabilities), verified in `evidence/12-lodash-fix/`.
+`4.18.1` (0 vulnerabilities), verified in `evidence/project-2/12-lodash-fix/`.
 
 ## 2. Allowed with documented justification
 
@@ -74,13 +74,13 @@ release exists anywhere in the dependency's ecosystem):
   obtainable score — fails the `sca` CI job with "manual review
   required": the dependency is blocked until the maintainer documents
   why it is acceptable. (Wired in S8; the current tree's scores are
-  captured in `evidence/16-ci-gates/scorecard-npm-deps.txt`.)
+  captured in `evidence/project-2/16-ci-gates/scorecard-npm-deps.txt`.)
 - New dependencies are reviewed for typosquatting risk before being
-  accepted (S6 method, `evidence/14-typosquat/`).
+  accepted (S6 method, `evidence/project-2/14-typosquat/`).
 - Internal packages must use the `@docutrust` scope, which `.npmrc`
   pins to the private registry — a package with an internal-sounding
   name can never silently resolve from the public registry
-  (`evidence/13-scope-demo/`).
+  (`evidence/project-2/13-scope-demo/`).
 
 ## 6. Cadence
 

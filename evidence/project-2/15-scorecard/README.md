@@ -60,4 +60,4 @@ repo — and knowing what each check measures. Check-by-check:
 Deliverable 7 is the run + interpretation (this note). Deliverable 8
 (S8) uses Scorecard for what it is good at here: **gating new
 dependencies** by the health of their upstream repos — see
-`evidence/16-ci-gates/scorecard-npm-deps.txt`.
+`evidence/project-2/16-ci-gates/scorecard-npm-deps.txt`.

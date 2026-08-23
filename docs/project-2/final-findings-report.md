@@ -23,12 +23,12 @@ blocks both known CVEs and unhealthy new dependencies before merge.
 
 | # | Finding | Location | Verdict | Evidence |
 |---|---|---|---|---|
-| 1 | lodash@4.17.15 exact pin — 6 advisories, 1 high (prototype pollution, command injection, ReDoS, template code injection) | `package.json`, used once via `_.cloneDeep` in `src/routes/documents.js` | **Fixed** → lodash@4.18.1, audit clean, smoke-tested | `evidence/10-sca-baseline/`, `evidence/12-lodash-fix/` |
-| 2 | No transitive finding: tree single-instance, all express pins on patched lines (path-to-regexp 0.1.13, cookie 0.7.2, qs 6.15.3) | `npm ls --all` | **No concern** (named and reviewed) | `evidence/11-transitive-review/` |
-| 3 | Dependency confusion: `@docutrust/*` scope resolved from the public registry by default (shadow-attack surface) | npm config | **Fixed** — `.npmrc` pins scope to private registry; demo shows shadow lookup blocked, control shows the risk | `evidence/13-scope-demo/` |
-| 4 | Typosquatting: 8 of 14 probed near-variant names exist(ed) — incl. `zod-js` (npm security takedown, 2026-01), `lodash-package` (2024), classic `loadsh` | registry | **No concern for the tree** (none in use; defense = exact pins + lockfile + audit gate + scoping). Attack class confirmed active | `evidence/14-typosquat/` |
-| 5 | No SCA gate in CI — the seeded finding could merge silently | `.github/workflows/ci.yml` | **Fixed** — `sca` job: `npm audit --audit-level=high` + scorecard gate for new deps | `evidence/16-ci-gates/` |
-| 6 | Seeded risky dependency (left-pad@1.3.0, score 4.2/10) | PR #1 | **Blocked by the gate** before merge — PR closed, branch deleted, main untouched | `evidence/16-ci-gates/run-seeded-PR-FAILED.txt` |
+| 1 | lodash@4.17.15 exact pin — 6 advisories, 1 high (prototype pollution, command injection, ReDoS, template code injection) | `package.json`, used once via `_.cloneDeep` in `src/routes/documents.js` | **Fixed** → lodash@4.18.1, audit clean, smoke-tested | `evidence/project-2/10-sca-baseline/`, `evidence/project-2/12-lodash-fix/` |
+| 2 | No transitive finding: tree single-instance, all express pins on patched lines (path-to-regexp 0.1.13, cookie 0.7.2, qs 6.15.3) | `npm ls --all` | **No concern** (named and reviewed) | `evidence/project-2/11-transitive-review/` |
+| 3 | Dependency confusion: `@docutrust/*` scope resolved from the public registry by default (shadow-attack surface) | npm config | **Fixed** — `.npmrc` pins scope to private registry; demo shows shadow lookup blocked, control shows the risk | `evidence/project-2/13-scope-demo/` |
+| 4 | Typosquatting: 8 of 14 probed near-variant names exist(ed) — incl. `zod-js` (npm security takedown, 2026-01), `lodash-package` (2024), classic `loadsh` | registry | **No concern for the tree** (none in use; defense = exact pins + lockfile + audit gate + scoping). Attack class confirmed active | `evidence/project-2/14-typosquat/` |
+| 5 | No SCA gate in CI — the seeded finding could merge silently | `.github/workflows/ci.yml` | **Fixed** — `sca` job: `npm audit --audit-level=high` + scorecard gate for new deps | `evidence/project-2/16-ci-gates/` |
+| 6 | Seeded risky dependency (left-pad@1.3.0, score 4.2/10) | PR #1 | **Blocked by the gate** before merge — PR closed, branch deleted, main untouched | `evidence/project-2/16-ci-gates/run-seeded-PR-FAILED.txt` |
 
 ## 3. What was fixed, and the discipline behind it
 
@@ -37,7 +37,7 @@ blocks both known CVEs and unhealthy new dependencies before merge.
   (`npm install lodash@4.18.1 --save-exact`), the rescan showed the
   advisory gone, the app was **restarted** (a stale process keeps the
   old version in memory) and the affected route smoke-tested over
-  HTTP (`evidence/12-lodash-fix/smoke-test.txt`).
+  HTTP (`evidence/project-2/12-lodash-fix/smoke-test.txt`).
 - **Policy, not vibes:** `docs/project-2/sca-policy.md` names the
   checkable thresholds — build blocks on `npm audit --audit-level=high`
   non-zero; new dependencies must score ≥ 5/10 on OpenSSF Scorecard;
@@ -54,7 +54,7 @@ Dangerous-Workflow; 0 on Branch-Protection, Code-Review,
 Token-Permissions, Pinned-Dependencies, Security-Policy, License,
 Dependency-Update-Tool, SAST (CodeQL-specific), Fuzzing, Maintained
 (repo <90 days), Contributors, CII-Best-Practices. Full per-check
-reading: `evidence/15-scorecard/README.md`. Follow-ups recorded:
+reading: `evidence/project-2/15-scorecard/README.md`. Follow-ups recorded:
 SECURITY.md, LICENSE, `permissions:` blocks in workflows,
 Dependabot, and (for the track) PR-based contribution + branch
 protection.

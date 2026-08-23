@@ -14,7 +14,7 @@ branches, written for this codebase but generalizing past the one seeded line:
    `src/routes/documents.js:76-77`
 
 ## Verification (`run.txt`)
-`semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-rule/test-cases.js`
+`semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/project-1/05-custom-rule/test-cases.js`
 → exit code **1** (blocking), 7 findings. (Historical run against the
 *vulnerable* code — includes the seeded line; the code has since been
 fixed. `run-committed-path.txt` is a fresh run against the committed

@@ -5,7 +5,7 @@
 # AKIAIOSFODNN7EXAMPLE constant in src/config.js — AWS's own published
 # placeholder, deliberately low-entropy. Verified: the default config flags
 # a random high-entropy AKIA key but not the placeholder (see
-# evidence/06-secrets/README.md). This project config pins the rule without
+# evidence/project-1/06-secrets/README.md). This project config pins the rule without
 # the entropy gate so the seeded finding is actually surfaced, mirroring the
 # project-specific semgrep rule: the default missed it, the project config
 # catches it.
@@ -36,5 +36,5 @@ description = "Password in URL or assignment"
 regex = '''(?i)(?:password|passwd|pwd)[=:][^\s"']{6,}'''
 
 [allowlist]
-description = "Documented references to the seeded placeholder key (Project 1 brief): README and docs/ (walkthrough, final-findings-report) document the finding, Project-Requirement/ (vm-setup-guide) quotes it in setup instructions, evidence/ captures scan outputs that quote it, and src/config.js intentionally retains the constant — verified inert by the live sts:GetCallerIdentity check (evidence/07-live-verification) and NOT in Project 1's fix list, which covers SQLi and XSS only. Path-scoped: a fresh key anywhere else is still flagged."
+description = "Documented references to the seeded placeholder key (Project 1 brief): README and docs/ (walkthrough, final-findings-report) document the finding, Project-Requirement/ (vm-setup-guide) quotes it in setup instructions, evidence/ captures scan outputs that quote it, and src/config.js intentionally retains the constant — verified inert by the live sts:GetCallerIdentity check (evidence/project-1/07-live-verification) and NOT in Project 1's fix list, which covers SQLi and XSS only. Path-scoped: a fresh key anywhere else is still flagged."
 paths = ["README.md", "docs/", "Project-Requirement/", "evidence/", "src/config.js"]
