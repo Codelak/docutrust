@@ -1,12 +1,23 @@
 const express = require("express");
 const { pool } = require("./db");
 const documentsRouter = require("./routes/documents");
+const iast = require("./lib/iast");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_VERSION = process.env.APP_VERSION || "dev";
 
 app.use(express.json());
+
+// IAST instrumentation (DevSecOps Project 3, deliverable 4): active only
+// when DOCUTRUST_IAST=1. Sources middleware marks query/body values as
+// tainted fragments; the sink wrapper checks SQL and HTML sinks. See
+// src/lib/iast.js for the mechanism and its documented scope.
+if (iast.ENABLED) {
+  iast.installSources(app);
+  app.use(iast.installSinks());
+}
+
 app.use("/documents", documentsRouter);
 
 app.get("/healthz", async (req, res) => {
