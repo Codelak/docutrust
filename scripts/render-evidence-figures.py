@@ -157,3 +157,44 @@ render("evidence/project-2/16-ci-gates/run-seeded-PR-FAILED.txt",
        "docs/project-2/images/15-seeded-pr-blocked.png",
        "gh run view — CI on the seeded dependency PR",
        "S9 — the gate blocks: sca failed on left-pad score 4.2 < 5 (D9); PR closed, branch deleted", RED)
+
+# ─────────────────────────────────────────────────────────────────────
+# Project 3 (DAST, IAST, RASP) — figures 16-22.
+# Sources are real captures under evidence/project-3/17..19-*, written during the
+# project's stages; every figure below is the actual tool output.
+# ─────────────────────────────────────────────────────────────────────
+
+render("evidence/project-3/17-zap-dast/zap-alerts-vuln.txt",
+       "docs/project-3/images/16-zap-alerts-vuln.png",
+       "OWASP ZAP — alerts, vulnerable test build",
+       "D2+D3 — SQLi High on /documents/search, stored XSS High on /documents/10/render", RED)
+
+render("evidence/project-3/17-zap-dast/zap-alerts-fixed.txt",
+       "docs/project-3/images/17-zap-alerts-fixed.png",
+       "OWASP ZAP — alerts, fixed build",
+       "D2+D3 contrast — same scan, 0 High: P1 fixes defeat both payload families", GREEN)
+
+render("evidence/project-3/17-zap-dast/first-run-crash.txt",
+       "docs/project-3/images/18-zap-first-run-crash.png",
+       "first stock-rule scan — the app crashed",
+       "P7 DoS observed for real: unclosed-quote probe OOM'd parseSearchQuery; scanner tuned, DoS left for P7", RED)
+
+render("evidence/project-3/18-iast/iast-vuln.log",
+       "docs/project-3/images/19-iast-vuln.png",
+       "IAST tracer log — vulnerable test build",
+       "D4 — both source-to-sink chains traced to the line (documents.js:72, :135)", RED)
+
+render("evidence/project-3/18-iast/iast-fixed.log",
+       "docs/project-3/images/20-iast-fixed.png",
+       "IAST tracer log — fixed build",
+       "D4 contrast — 0 findings: taint isolated in bound params, neutralized by escapeHtml", GREEN)
+
+render("evidence/project-3/19-rasp/rasp-on-transcript.txt",
+       "docs/project-3/images/21-rasp-on.png",
+       "RASP live — attacks blocked at the boundary",
+       "D7+D8 — SQLi and XSS payloads answered 403 before the route; benign traffic passes", GREEN)
+
+render("evidence/project-3/19-rasp/rasp-off-transcript.txt",
+       "docs/project-3/images/22-rasp-off.png",
+       "RASP off — control run",
+       "D7+D8 contrast — identical payloads reach the sinks (table dump, payload stored)", RED)

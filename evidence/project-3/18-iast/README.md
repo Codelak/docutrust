@@ -14,26 +14,26 @@ vulnerable run). The same five requests were executed in both modes:
 
 1. `POST /documents` with `{"title":"<script>alert(1)</script>", ...}`
    (the attacker's write side of the stored XSS — request #2)
-2. `GET /documents/search?q=' OR 1=1 --` (the SQLi payload)
+2. `GET /documents/search?q=' OR 1=1 --` (the SQLi payload — request #3)
 3. `GET /documents/10/render` (the victim's read side of the stored XSS)
 
 ## Vulnerable build (`iast-vuln.log`) — 2 findings
 
 ```
 FINDING SQL — tainted input reached a dangerous sink
-    source:     req.query (GET /documents/search, request #5)
+    source:     req.query (GET /documents/search, request #3)
     sink:       pool.query(sql)
     at:         src/routes/documents.js:72
     fragment:   "' OR 1=1 --"
 
 FINDING HTML — tainted input reached a dangerous sink
-    source:     req.body (POST /documents, request #4)
+    source:     req.body (POST /documents, request #2)
     sink:       res.send() [GET /documents/10/render]
     at:         src/routes/documents.js:135
     fragment:   "<script>alert(1)</script>"
 ```
 
-Note the second one: the source is request #4 (the POST) but the sink is
+Note the second one: the source is request #2 (the POST) but the sink is
 a *different*, later request (the render). That cross-request chain is
 the stored XSS: the fragment registry stands in for the database
 round-trip a real IAST agent tracks through DB instrumentation. The SQLi

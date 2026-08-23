@@ -1,0 +1,12 @@
+ZAP 2.17.0 — alerts, fixed build (DOCUTRUST_VULN_MODE unset)
+
+Same target URLs, same scan configuration:
+
+High alerts: 0
+Medium alerts: 0
+Low/info: X-Content-Type-Options, X-Powered-By, CSP header,
+          anti-clickjacking — application hardening only.
+
+The Project 1 fixes defeat both payload families:
+  - parameterized ILIKE query: no response differential on ' OR 1=1 --
+  - escapeHtml: no <script> payload survives in the render response

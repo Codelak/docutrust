@@ -1,0 +1,16 @@
+ZAP 2.17.0 — alerts, vulnerable test build (DOCUTRUST_VULN_MODE=1)
+
+High: SQL Injection - Single-Quote Probes (DocuTrust)
+      url:      http://localhost:3000/documents/search?q=%27+OR+1%3D1+--
+      param:    q
+      attack:   ' OR 1=1 --
+      evidence: ' OR 1=1 --
+      risk:     High    confidence: Medium
+
+High: Stored XSS - Script Payload in HTML Response (DocuTrust)
+      url:      http://localhost:3000/documents/10/render
+      evidence: <script>alert(1)</script>
+      risk:     High    confidence: Medium
+
+(plus passive Low/info alerts: X-Content-Type-Options, X-Powered-By,
+ CSP header, anti-clickjacking — application hardening, not the seeded bugs)

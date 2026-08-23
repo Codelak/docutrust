@@ -1,0 +1,19 @@
+What happened when the FIRST stock-rule scan ran (before tuning):
+
+  ZAP's built-in SQL Injection rule sent a probe containing an unclosed
+  double quote into /documents/search?q=...
+  DocuTrust's naive search parser (src/lib/searchQuery.js) enters an
+  infinite loop on an unclosed quote — a real DoS bug reserved as
+  Project 7's fuzz target — and grows memory until the process dies:
+
+  FATAL ERROR: Ineffective mark-compacts near heap limit
+               Allocation failed - JavaScript heap out of memory
+  [node:OOMErrorHandler]  FatalProcessOutOfMemoryError
+      at v8::Utils::ReportOOMFailure
+      at v8::internal::Heap::CollectGarbage
+      ... (unbounded token growth in parseSearchQuery)
+
+  The scan aborted with only passive findings. Root cause identified,
+  scanner tuned to a single-quote-only probe set (security/zap/), and
+  the scan rerun successfully. The DoS itself remains deliberately
+  unfixed: it is Project 7's fuzz target.
