@@ -14,4 +14,19 @@
  */
 const LEGACY_INTEGRATION_KEY = "AKIAIOSFODNN7EXAMPLE";
 
-module.exports = { LEGACY_INTEGRATION_KEY };
+/**
+ * Project 3 (DAST / IAST / RASP) test-build switch. When true, the two
+ * seeded vulnerabilities fixed in Project 1 (SQLi in GET /documents/search,
+ * stored XSS in GET /documents/:id/render) are restored verbatim — the
+ * original pre-fix shapes — so the DAST scan, the IAST tracer, and the
+ * RASP middleware all have a genuine, findable target, the same way the
+ * bugs existed when Project 1 seeded them.
+ *
+ * Production default is OFF: the fixed paths remain the default. Enable
+ * this only for a deliberately vulnerable test instance (the Project 3
+ * brief's scan target), never in production — see
+ * docs/project-3/walkthrough.md for the run recipe.
+ */
+const VULN_MODE = process.env.DOCUTRUST_VULN_MODE === "1";
+
+module.exports = { LEGACY_INTEGRATION_KEY, VULN_MODE };

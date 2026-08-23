@@ -3,6 +3,7 @@ const _ = require("lodash");
 const { pool } = require("../db");
 const { createDocumentSchema, createCommentSchema } = require("../validation");
 const { parseSearchQuery } = require("../lib/searchQuery");
+const config = require("../config");
 
 const router = express.Router();
 
@@ -33,12 +34,20 @@ router.post("/", async (req, res) => {
 });
 
 /**
- * FIXED (DevSecOps Project 1, deliverable 7): the query below now uses a
- * bound parameter ($1) instead of raw string concatenation — the SQL
- * injection is gone. The route is also registered before GET /:id: without
- * that ordering, Express matched "/documents/search" against "/:id" (id =
- * "search") and the endpoint was unreachable, returning 503 — discovered
- * during Project 1's reachability check.
+ * The query below is built two ways, selected by config.VULN_MODE:
+ *
+ * DEFAULT (fixed, DevSecOps Project 1 deliverable 7): a bound parameter
+ * ($1) instead of raw string concatenation — the SQL injection is gone.
+ * The route is also registered before GET /:id: without that ordering,
+ * Express matched "/documents/search" against "/:id" (id = "search") and
+ * the endpoint was unreachable, returning 503 — discovered during Project
+ * 1's reachability check.
+ *
+ * VULN_MODE (DevSecOps Project 3 test build): the original seeded shape,
+ * restored verbatim from before the fix — raw string concatenation into
+ * the ILIKE query, a textbook SQL injection. Only active when
+ * DOCUTRUST_VULN_MODE=1; that deliberately vulnerable instance is the
+ * target for Project 3's DAST scan, IAST tracer, and RASP middleware.
  *
  * The endpoint still calls the intentionally naive parseSearchQuery() from
  * lib/searchQuery.js, Project 7's fuzz target, documented there.
@@ -56,6 +65,13 @@ router.get("/search", async (req, res) => {
   const searchTerm = tokens.map((t) => t.value).join(" ");
 
   try {
+    if (config.VULN_MODE) {
+      // VULNERABLE ON PURPOSE (Project 3 test build only), see comment
+      // above. Same shape as the Project 1 seeded finding.
+      const query = `SELECT id, title FROM documents WHERE title ILIKE '%${searchTerm}%'`;
+      const result = await pool.query(query);
+      return res.json(result.rows);
+    }
     const result = await pool.query(
       "SELECT id, title FROM documents WHERE title ILIKE $1",
       [`%${searchTerm}%`]
@@ -89,9 +105,18 @@ function escapeHtml(value) {
 }
 
 /**
- * FIXED (DevSecOps Project 1, deliverable 7): `title` and `body` are now
- * HTML-escaped before interpolation, so a document containing a script tag
- * renders as inert text instead of executing in the victim's browser.
+ * `title` and `body` are written into the HTML response two ways,
+ * selected by config.VULN_MODE:
+ *
+ * DEFAULT (fixed, DevSecOps Project 1 deliverable 7): HTML-escaped before
+ * interpolation, so a document containing a script tag renders as inert
+ * text instead of executing in the victim's browser.
+ *
+ * VULN_MODE (DevSecOps Project 3 test build): the original seeded shape,
+ * restored verbatim — unescaped interpolation, a textbook stored XSS.
+ * Only active when DOCUTRUST_VULN_MODE=1; that deliberately vulnerable
+ * instance is the target for Project 3's DAST scan, IAST tracer, and RASP
+ * middleware.
  */
 router.get("/:id/render", async (req, res) => {
   try {
@@ -104,6 +129,11 @@ router.get("/:id/render", async (req, res) => {
     const { title, body } = result.rows[0];
 
     res.set("Content-Type", "text/html");
+    if (config.VULN_MODE) {
+      // VULNERABLE ON PURPOSE (Project 3 test build only), see comment
+      // above. Same shape as the Project 1 seeded finding.
+      return res.send(`<html><body><h1>${title}</h1><p>${body}</p></body></html>`);
+    }
     res.send(
       `<html><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></body></html>`
     );
