@@ -1,22 +1,41 @@
 # DocuTrust Walkthrough — SAST, Secrets Scanning, and Live Secret Verification
 
 *A beginner's guide to how I carried out Project 1 of the DevSecOps track on
-DocuTrust. Every command below actually ran, and every output quoted below is
-real output I got. Evidence files and screenshots are cited along the way.
-The guide assumes a Bash terminal (macOS, Linux, or WSL2 on Windows).*
+DocuTrust. Every command below actually ran, and every screenshot below is a
+real capture of that command on a real terminal — not a drawing, not the
+tool's documentation page. Evidence files are cited along the way. The guide
+assumes a Bash terminal (macOS, Linux, or WSL2 on Windows).*
 
 ---
 
 ## Starting from this repo (not from the course handout)?
 
 This repo holds the **finished** Project 1 — on `main`, both bugs are
-already fixed and the CI gate already exists. To do the project
-yourself, start on the `starter` branch instead: it is the same app
-*before* the fixes, exactly as this guide assumes, and it carries
-this walkthrough with it:
+already fixed and the CI gates already exist. To do the project yourself,
+start on the `project1-starter` branch instead: it is the same app *before*
+the fixes, exactly as this guide assumes, and it carries this walkthrough
+with it.
 
 ```bash
-git checkout starter
+git checkout project1-starter
+```
+
+**Before every `git checkout` in this guide, check that your working tree
+is clean** — a checkout silently refuses when a tracked file has local
+changes, and the error ("Your local changes… would be overwritten") sounds
+alarming when it's actually just housekeeping:
+
+```bash
+git status
+```
+
+The line `nothing to commit, working tree clean` is the green light. If it
+isn't clean, either commit your work or throw it away:
+
+```bash
+# keep it:  git add -A && git commit -m "wip"
+# or discard it (works, then re-checkout):
+git checkout -- .
 ```
 
 Work through Stages 1–11 there. For Stage 12 (the CI gate), come back
@@ -26,6 +45,66 @@ GitHub fork** so GitHub Actions runs for you:
 ```bash
 git checkout main
 ```
+
+---
+
+## Resetting between runs (read this once — it fixes re-running)
+
+All the examples in this guide assume a **known starting state**: an empty
+`documents` table with ids starting at 1. The first time you run a stage that
+creates data, that's naturally true. The second time — after a pause, a
+failed run, or a page you skipped — it is not: every re-pasted
+`POST /documents` adds another row, ids keep climbing, and the numbers in
+the outputs below stop matching.
+
+So every stage begins with a **checkpoint**: what state it assumes, and the
+three commands that establish it. They are standard tools, and you can type
+them without understanding anything advanced:
+
+```bash
+# 1. Stop the app if it's still running (a second instance would fail
+#    with EADDRINUSE). Nothing means this prints nothing — that's fine.
+pkill -f "node src/index.js" || true
+
+# 2. Load the database credentials into THIS terminal. Node only sees
+#    exported variables, which is why this line is needed.
+set -a && . ./.env.local && set +a
+
+# 3. Reset the data, not the schema: rows and the id sequence go back
+#    to the beginning; the tables and their structure stay.
+psql "$DATABASE_URL" -c "TRUNCATE documents, comments RESTART IDENTITY CASCADE;"
+
+# 4. Prove it worked before continuing (should print one row: 0).
+psql "$DATABASE_URL" -c "SELECT count(*) FROM documents;"
+```
+
+![A checkpoint in action](images/25-reset-truncate.png)
+
+*Figure 1 — `TRUNCATE documents, comments RESTART IDENTITY CASCADE;` —
+the whole data state of the dev database back to row zero, sequence
+reset, cross-table references now dangling-safe via `CASCADE`.*
+
+![Proof the reset worked](images/26-reset-count.png)
+
+*Figure 2 — the proof: `count(*)` is 0 before any work of a stage. Never
+skip the proof — it turns "I wonder why the numbers are odd" into an
+immediate answer.*
+
+Why these exact choices:
+
+- **`TRUNCATE … RESTART IDENTITY`, not `DROP DATABASE`** — the schema
+  (tables, columns, the `schema_migrations` bookkeeping that `npm run
+  migrate` uses) survives, so the app and its settings keep working. Only
+  *data* and the id *sequence* return to zero. Deleting the database is
+  heavier than needed and risks clobbering other work in the same PG
+  instance.
+- **Stop the app first** — the app holds connections to the same database;
+  and more importantly, the *next* stage's `npm start` must be the one that
+  gets port 3000. Re-running `node src/index.js` while the old one is still
+  up fails with `EADDRINUSE` (see the troubleshooting table).
+- **Flags and configuration are read when the app starts** — that's why a
+  checkpoint always restarts the app after a reset, rather than assuming a
+  half-process saw the new settings.
 
 ---
 
@@ -64,9 +143,10 @@ Here is the stage map for this whole walkthrough:
 |:---|:---|:---|
 | 1–2 | Install the tools, start the database | You need a working setup |
 | 3–4 | Run the app and smoke-test it | You can't judge a scanner finding without knowing what the code does when it runs |
-| 5–6 | Scan with default rules, confirm the XSS by hand | See what generic tools catch |
-| 7 | Write a custom rule | Catch what the defaults miss |
-| 8–9 | Scan for secrets, verify the "key" live | Pattern match ≠ proof |
+| 5 | Confirm the XSS by hand | See what generic tools catch — and prove it's real |
+| 6 | Write a custom SAST rule | Catch what the defaults miss |
+| 7–8 | Scan for secrets, verify the "key" live | Pattern match ≠ proof |
+| 9 | The reachability discovery | The surprise that changed how you read code |
 | 10–11 | Fix both vulnerabilities, prove the fixes | The actual job |
 | 12–13 | Wire the CI gate, write the report | Make it stick |
 
@@ -192,7 +272,11 @@ This installs and starts the PostgreSQL server. Check it's running:
 pg_isready
 ```
 
-You want to see `accepting connections`.
+![pg_isready says the server is up](images/28-pg_isready.png)
+
+*Figure 3 — `pg_isready` — the cheap truth about whether PostgreSQL is
+accepting connections, and therefore whether the next stage's
+`npm run migrate` has a database to talk to.*
 
 *(If you already have PostgreSQL running — for example `psql --version`
 worked and `pg_isready` says `accepting connections` — you're done here.
@@ -214,6 +298,10 @@ folder so they don't clash with your system Python):
 pipx install semgrep
 ```
 
+> **Re-running:** if pipx says the package "is already installed" — that's
+> success for our purposes; you're not installing a fresh instance, you're
+> checking it's there. Move on to the version check.
+
 You should see it print something like `installed package semgrep 1.173.0`.
 
 Check it works:
@@ -222,7 +310,10 @@ Check it works:
 semgrep --version
 ```
 
-You should see something like `semgrep 1.173.0`.
+You should see something like `semgrep 1.173.0`. semgrep updates fast; your
+version number will differ from mine, and the *output text* of a scan may
+differ slightly — the pattern of "1 finding for the XSS" is the thing to
+compare, not exact wording.
 
 ### Step 1.5 — Install gitleaks
 
@@ -231,18 +322,22 @@ your git history) looking for things that look like passwords or API keys:
 `AKIA...`, `sk-...`, `password=...`, and hundreds of other patterns. It
 will find the seeded AWS-key-shaped constant.
 
-gitleaks is a compiled program distributed as a zip file. Download the
-latest release from its GitHub page —
-<https://github.com/gitleaks/gitleaks/releases> — pick the file for your
-system (e.g. `gitleaks_8.30.1_linux_x64.tar.gz` for Linux), then unpack it:
+gitleaks is a compiled program distributed as a zip file. **Install
+version 8.30.1 — the version this guide's figures and the evidence files
+were made with.** gitleaks' default `aws-access-token` rule changed
+between versions, and the whole point of Stage 7 is to watch that behavior
+change from one version to the next; using a consistent version keeps the
+comparison honest. (If a newer version flags the seeded key by default,
+that's the same phenomenon worth writing in your report — see Step 7.2.)
 
 ```bash
-curl -sL -o gitleaks.tar.gz <the download URL you copied>
+curl -sL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
 ```
 
 This downloads the zip file. `-sL` means "silent" (no progress spam) and
 "follow redirects" (the GitHub download link bounces through a couple of
-URLs before reaching the file).
+URLs before reaching the file). (macOS: `gitleaks_8.30.1_darwin_x64.tar.gz`;
+ARM: `_darwin_arm64` / `_linux_arm64`.)
 
 ```bash
 tar -xzf gitleaks.tar.gz
@@ -255,20 +350,26 @@ This unpacks the zip into the current folder. Check it works:
 ```
 
 If it prints a version, move it somewhere on your PATH (a folder of
-executables your terminal searches) so you can just type `gitleaks`
-anywhere:
+executables your terminal searches) so you can just type `gitleaks`:
 
 ```bash
 sudo mv gitleaks /usr/local/bin/
 ```
+
+> **Re-running:** if `mv` says `cannot stat 'gitleaks': No such file or
+> directory`, the binary is already where it belongs — re-run only the
+> version check. And if you already have *some* gitleaks on your PATH, the
+> version check tells you which one you'll get; `gitleaks --version`
+> prints it.
 
 ```bash
 gitleaks version
 ```
 
 *(On macOS you can also `brew install gitleaks`, and on Ubuntu
-`sudo snap install gitleaks` — pick whichever method is easiest for you.
-What matters is that `gitleaks version` works.)*
+`sudo snap install gitleaks` — but then the version is whatever the
+package ships, not 8.30.1. Pin the version: the output differences later
+in this guide are the lesson.)*
 
 ### Step 1.6 — Double-check everything
 
@@ -318,6 +419,15 @@ The `\` at the end of a line just means "this command continues on the
 next line" — you can also type it all on one line. If you want, you can
 paste the whole command including the `\`s, it's still one command.
 
+> **Re-running long after a restart:** a stopped container isn't a failed
+> one. `docker ps` only lists *running* containers — use `docker ps -a`
+> to see the stopped one, and `docker start docutrust-postgres` to bring
+> it back. If you've seen all of this and the error says the *name* is
+> already in use, a container with that name exists — reuse it
+> (`docker start`) or delete it (`docker rm -f docutrust-postgres`) and
+> run the create line again. Never run two containers for the same
+> database: they'd fight over port 5432.
+
 **Path B — native PostgreSQL** (no Docker):
 
 Create the database user and database with the *exact same credentials*
@@ -331,8 +441,16 @@ sudo -u postgres psql -c "CREATE ROLE docutrust WITH LOGIN PASSWORD 'docutrust_d
 sudo -u postgres psql -c "CREATE DATABASE docutrust OWNER docutrust;"
 ```
 
+![The idempotent case: the role already exists](images/27-role-exists.png)
+
+*Figure 4 — running the Create role line a second time. The error `already
+exists` is not breakage — it is the confirmation that the setup from the
+first run is still in place. Same for the database line.*
+
 *(If these say "already exists", that's fine — the database is already
-set up, move on.)*
+set up, move on. And if you ran **both** paths, only Path B's lines can
+succeed: a native and a container Postgres cannot both own port 5432.
+Pick one, as Step 1.3 said.)*
 
 ### Step 2.2 — Install the app's dependencies
 
@@ -353,6 +471,11 @@ npm install
 This reads `package.json` (the app's shopping list) and downloads every
 library into a folder called `node_modules`. You'll see a progress list
 finishing with something like `added 100 packages`.
+
+> **Re-running:** a re-run is a no-op-ish check ("up to date"), and
+> deleting `node_modules` + re-running `npm install` is the standard cure
+> for a corrupted install. `npm` is fine on repeat as long as you're in
+> the right directory.
 
 ### Step 2.3 — Create the app's config file
 
@@ -378,6 +501,10 @@ Read it like this: `postgresql://` the *username* `docutrust`, the
 database `docutrust`. It exactly matches the database you created in
 Step 2.1. That match is what makes everything work.
 
+> **Re-running:** a re-copy overwrites `.env.local` with the template. If
+> you changed the file intentionally (different password, different port),
+> keep a backup or don't re-copy.
+
 ### Step 2.4 — Load the config into your terminal (important!)
 
 Here is a trap that will otherwise waste 10 minutes of your life:
@@ -402,7 +529,8 @@ so `DATABASE_URL` reaches every command you run afterwards — including
 > (the app silently tries to connect as your OS user with no password).
 > `set -a` turns on auto-export for the source, and `set +a` turns it off
 > again. If you open a new terminal later, run this same line again —
-> that's normal and expected.
+> that's normal and expected. And since `source` re-reads the file, it
+> picks up any edits you made; it's safe to re-run.
 
 ### Step 2.5 — Create the database tables
 
@@ -425,7 +553,16 @@ Migrations up to date
 ```
 
 If the database was already set up, you'll just see `Migrations up to
-date` — that's also success.
+date` — **that's also success**, and your guide's second-run experience
+will look like this:
+
+![The second run of migrate is a no-op — by design](images/24-migrate.png)
+
+*Figure 5 — `npm run migrate` a second time. Nothing to apply, no error
+— the migration runner keeps a bookkeeping table (`schema_migrations`) of
+the files it already ran. This is the one part of the app that was
+idempotent from the start; the reset contract (above) makes the rest
+match it.*
 
 ### Step 2.6 — Start the app
 
@@ -446,9 +583,33 @@ running, and it will keep running until you press `Ctrl+C`. Leave this
 terminal alone. Open a **second terminal** for the next stage. (If you
 later want to stop the app, press `Ctrl+C` in this terminal.)
 
+> **Re-running / second instance:** if you see `Error: listen
+> EADDRINUSE: address already in use :::3000`, an instance is already
+> running. Quit that one (`Ctrl+C` in its terminal), or run this stage's
+> checkpoint (`pkill -f "node src/index.js" || true`). The checkpoint is
+> the safe habit.
+>
+> ![What a second instance looks like](images/29-eaddr-in-use.png)
+>
+> *Figure 6 — the dead giveaway: `EADDRINUSE`, `address :::3000`.*
+
 ---
 
 ## Stage 3 — Smoke test: prove the app actually works
+
+**Checkpoint (state this stage assumes):** the app is running on port
+3000 from `project1-starter`, and the `documents` table is empty with the
+id sequence at 1. If you're not sure, run this before anything else:
+
+```bash
+pkill -f "node src/index.js" || true
+set -a && . ./.env.local && set +a
+psql "$DATABASE_URL" -c "TRUNCATE documents, comments RESTART IDENTITY CASCADE;"
+psql "$DATABASE_URL" -c "SELECT count(*) FROM documents;"
+```
+
+then start the app again (`node src/index.js` in its own terminal). This
+is why the ids below say exactly 1 and 2.
 
 "Smoke test" = a handful of quick checks that the app is alive and
 behaving. We talk to the app with **curl** — a command-line tool that
@@ -467,6 +628,12 @@ Expected output:
 {"status":"ok","version":"dev"}
 ```
 
+![The health check](images/07-smoke-health.png)
+
+*Figure 7 — `curl localhost:3000/healthz` — the app says it's alive, and
+it means it: the endpoint itself checks the database connection before
+answering.*
+
 **What just happened:** curl asked the app "are you alive?" The app
 checked that it can reach the database, and answered `"status":"ok"`.
 This is the app's health endpoint — the kind of thing monitoring tools
@@ -477,7 +644,7 @@ ping every minute.
 The app's main job is storing documents. This command creates one:
 
 ```bash
-curl -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"Quarterly Report","body":"Q2 numbers"}'
+curl -s -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"Quarterly Report","body":"Q2 numbers"}' | jq .
 ```
 
 Breaking it down:
@@ -489,33 +656,57 @@ Breaking it down:
 | `localhost:3000/documents` | the app's address + the documents resource |
 | `-H 'Content-Type: application/json'` | tell the app "what follows is JSON" (JSON is a plain-text format for describing data) — the app only parses the body if you send this header |
 | `-d '...'` | the data ("body") to send — a title and a body in JSON format |
+| `\| jq .` | pretty-print the JSON the server returns, instead of one long line |
 
 Expected output (note the `id` the server assigned):
 
 ```json
-{"id":1,"title":"Quarterly Report","body":"Q2 numbers","created_at":"2026-08-18T16:44:51.375Z"}
+{
+  "id": 1,
+  "title": "Quarterly Report",
+  "body": "Q2 numbers",
+  "created_at": "2026-08-27T12:33:41.000Z"
+}
 ```
 
-> **Your id may be different!** The server assigns ids starting at 1, but
-> if the database was used before, you may get `id: 4` or `id: 5`. That's
-> fine — just use whatever id you got in the next commands. I'll write
-> `1` below, but replace it with yours.
+![Creating the document](images/08-smoke-create.png)
+
+*Figure 8 — the server assigned id 1. After a reset, that's deterministic
+— it's always 1. Without the reset contract, it's whatever comes next.*
+
+> **From now on, capture ids — don't trust literals.** The next commands
+> need the id. Let me show you the one-liner I use, then explain it:
+
+```bash
+DOC_ID=$(curl -s -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"Quarterly Report","body":"Q2 numbers"}' | jq -r .id) && echo "DOC_ID=$DOC_ID"
+```
+
+> `$( ... )` runs the curl and captures its output; `jq -r .id` pulls just
+> the id field; `echo "DOC_ID=$DOC_ID"` prints it so you can *see* what
+> you captured. I'll use `$DOC_ID` below. This habit is what makes a guide
+> readable on any machine: after a reset the value is 1, before a reset
+> it's "the next one" — either way, your commands keep working.
 
 ### Step 3.3 — Fetch the document back
 
 ```bash
-curl localhost:3000/documents/1
+curl localhost:3000/documents/$DOC_ID
 ```
 
 (Use the id you got in the previous step.) You should get the same JSON
 back — this proves the document was actually stored in the database.
+
+![Fetching the document back](images/09-smoke-fetch.png)
+
+*Figure 9 — round trip: the id the server printed is the key that reads
+it back.*
 
 ### Step 3.4 — Render the document as an HTML page
 
 The app can also present a document as a web page:
 
 ```bash
-curl localhost:3000/documents/1/render
+curl localhost:3000/documents/$DOC_ID/render
 ```
 
 Expected output:
@@ -524,9 +715,11 @@ Expected output:
 <html><body><h1>Quarterly Report</h1><p>Q2 numbers</p></body></html>
 ```
 
-That's the document wrapped in HTML tags — a title in an `<h1>` heading,
-the body in a `<p>` paragraph. **Remember this endpoint — it's the one
-with the XSS bug (Stage 6).**
+![The rendered page](images/10-smoke-render.png)
+
+*Figure 10 — the document wrapped in HTML tags: the title in an
+`<h1>` heading, the body in a `<p>` paragraph. **Remember this
+endpoint — it's the one with the XSS bug (Stage 5).***
 
 ### Step 3.5 — Search for a document
 
@@ -534,29 +727,40 @@ with the XSS bug (Stage 6).**
 curl "localhost:3000/documents/search?q=quarterly"
 ```
 
-Expected output:
+Expected output — hold on to it, because it's a surprise:
 
 ```json
-[{"id":1,"title":"Quarterly Report"}]
+{"error":"Database unavailable"}
 ```
 
-**What just happened:** the app searched the database for documents whose
-title contains "quarterly" (case-insensitive — the `ILIKE` in the SQL
-query) and returned a list. **This is the endpoint with the SQL injection
-bug (Stage 7).** Notice the quotes around the URL — the `?q=...` part is
-how you pass a parameter in a URL, and quotes protect the `?` and `=`
-from the shell.
+![The surprise: search fails](images/11-smoke-search.png)
 
-> **The surprise I found in the original walkthrough:** the very first
-> time I ran this app, search returned `{"error":"Database unavailable"}`
-> for a query I *knew* was valid. That turned out to be its own discovery
-> — the `/search` route was being shadowed by another route. The full
-> story is in Stage 7. If search works for you now, it's because the fix
-> is already in the code — you'll see both sides in Stages 10–11.
+*Figure 11 — `?q=quarterly` should match the document we just created,
+but the app answers `Database unavailable`. This is the endpoint with
+the SQL injection bug, and it's *not supposed to work like this* —
+the full story is Stage 9. Notice the quotes around the URL: the
+`?q=...` part is how you pass a parameter in a URL, and quotes protect
+the `?` and `=` from the shell.*
+
+> **Don't skip this moment.** A search for a document that provably
+> exists failing with a database error is not noise — it's a finding in
+> disguise, and it's the discovery Stage 9 is about. (If search *does*
+> return `[{"id":1,...}]` for you, you're on a branch where the route
+> order is already fixed — the same discovery, already resolved; you'll
+> still see both sides in Stages 10–11.)
 
 ---
 
 ## Stage 4 — SAST scan with the default rulesets
+
+**Checkpoint:** you're on `project1-starter` (unfixed code) with a clean
+tree. Static scans don't care about the database — but they do care about
+the code state, and that's what this stage's output is about:
+
+```bash
+git status
+git log --oneline -1    # should reference project1-starter's pre-fix commit
+```
 
 Now the fun part: point a real security scanner at the code.
 
@@ -581,26 +785,21 @@ Breaking it down:
 | `--config=p/javascript` | also use the JavaScript ruleset |
 | `src/` | scan this folder (the app's source code) |
 
-Expected result — **one finding**:
+Expected result — **one finding** (the run takes a few seconds; the
+rulesets are fetched and cached on first use):
 
-```
-src/routes/documents.js
-   ❯❱ javascript.express.security.injection.raw-html-format.raw-html-format
-   User data flows into ... this manually-constructed HTML. This can
-   introduce a Cross-Site-Scripting (XSS) vulnerability ...
-   108┆ `<html><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></body></html>`
-```
+![The default rulesets catch the XSS and miss the SQLi](images/12-sast-default.png)
+
+*Figure 12 — real semgrep output against `project1-starter`: the default
+rulesets found **one** finding — the manually-constructed HTML at
+`src/routes/documents.js:104`, and the summary "Ran 74 rules on 7 files:
+1 finding".*
 
 **What just happened:** semgrep found the render endpoint's HTML
 construction (Stage 3.4). It's flagging that user data (`title`, `body`)
 gets interpolated into HTML — the classic XSS pattern (printing user
 input into a web page unescaped; the plain-language definition is in
-Stage 5). The default ruleset caught the XSS:
-
-![](images/01-sast-default-xss.png)
-
-*Figure 1 — Real semgrep output: the XSS finding (`raw-html-format`,
-`documents.js:104`) that the default rulesets caught.*
+Stage 5).
 
 **And now the part that matters:** where was the SQL injection? Nowhere.
 Zero findings for it. The textbook SQL injection in the search endpoint —
@@ -610,12 +809,17 @@ generic ruleset I tried.
 > **Lesson 1:** generic rulesets don't know your stack. They don't model
 > "template literal flows into `pool.query()`" for this specific
 > JavaScript/Postgres combination. The finding is there — the tool that
-> catches it is the one you write yourself (Stage 7). This is exactly
+> catches it is the one you write yourself (Stage 6). This is exactly
 > why the project brief demands a custom rule.
 
 ---
 
 ## Stage 5 — Confirm the XSS finding by hand
+
+**Checkpoint:** the app is running, and the database is in the state Stage
+3 left it (ids 1 and 2). If `quarterly` documents are multiplying, reset
+as in Stage 3, then re-create one normal document and the script document
+below.
 
 A scanner saying "this might be XSS" is a hypothesis. Let's *prove* it
 against the running app — this is what separates a scanner output from
@@ -628,7 +832,7 @@ and make it execute in *other people's browsers* when they view the page.
 ### Step 5.1 — Create a document containing a script tag
 
 ```bash
-curl -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"<script>alert(1)</script>","body":"hello"}'
+XSS_ID=$(curl -s -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"<script>alert(1)</script>","body":"hello"}' | jq -r .id) && echo "XSS_ID=$XSS_ID"
 ```
 
 Note the title: it's an HTML `<script>` tag. A real attacker would put a
@@ -636,19 +840,32 @@ script that steals cookies; `alert(1)` is the harmless "hello world" of
 XSS demos — it pops a dialog box. **Never test with a malicious payload
 on a system you don't own; this is your own dev app, so it's fine.**
 
+![Creating the script document](images/30-xss-create.png)
+
+*Figure 13 — the `<script>alert(1)</script>` document is stored, id 2
+after the reset.*
+
 ### Step 5.2 — Render it
 
 ```bash
-curl localhost:3000/documents/2/render
+curl localhost:3000/documents/$XSS_ID/render
 ```
 
-(Use the id from the response — in my case 2.)
+(Use `$XSS_ID` — or the id from the response.)
 
 Expected output:
 
 ```html
 <html><body><h1><script>alert(1)</script></h1><p>hello</p></body></html>
 ```
+
+![The payload round-trips unescaped](images/14-confirm-xss-render.png)
+
+*Figure 14 — the `<script>` tag came out of the app **completely
+unescaped**. If a victim opens that URL in a browser, the script executes
+on their machine. Confirmed: genuinely exploitable, not a scanner
+artifact. (We'll fix it in Stage 10, and you'll see the same request
+come back *escaped* in Stage 11.3.)*
 
 **There it is.** The `<script>` tag came out of the app **completely
 unescaped**. If a victim opens that URL in a browser, the script executes
@@ -659,6 +876,8 @@ come back *escaped*.)
 ---
 
 ## Stage 6 — The custom SAST rule (the part that separates this from a tutorial)
+
+**Checkpoint:** `project1-starter`, clean tree, `src/` unmodified.
 
 ### Step 6.1 — The problem, in plain words
 
@@ -717,16 +936,23 @@ to look at the assignment block, then metavariable propagation to the
 semgrep --metrics=off --config semgrep/rules/ src/
 ```
 
-Expected result on today's (fixed) code — **0 findings**:
+Expected result on the unfixed code — **1 finding, exit code 1**:
 
-```
-Ran 1 rule on 7 files: 0 findings.
-```
+![The custom rule finds the seeded SQLi](images/16-sast-custom-rule.png)
 
-*(When I ran this during the project, against the *unfixed* code, it
-found the seeded SQLi at `src/routes/documents.js:77` — exit code 1,
-meaning "violations found". You'll recreate that moment in Stage 10
-before fixing.)*
+*Figure 15 — the custom rule against `project1-starter`: the seeded SQLi
+at `src/routes/documents.js:77` — "Ran 1 rule on 7 files: 1 finding".
+The number of files matters: on `main` there are 12 (later projects add
+files), on the starter there are 7. That's why the docs for each project
+say where to run them.*
+
+The exit code is what makes this usable: `--error` turns findings into a
+non-zero exit, which is how the CI gate in Stage 12 knows to fail. Check
+it with:
+
+```bash
+semgrep --metrics=off --config semgrep/rules/ --error src/; echo "exit code: $?"
+```
 
 ### Step 6.4 — Prove the rule generalizes
 
@@ -740,7 +966,7 @@ the proof you understand the difference between a vulnerability and the
 *shape* of the code.
 
 ```bash
-semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-rule/test-cases.js
+semgrep --metrics=off --config semgrep/rules/ --error src/ evidence/05-custom-rule/test-cases.js; echo "exit code: $?"
 ```
 
 Breaking it down:
@@ -751,24 +977,15 @@ Breaking it down:
 | `--error` | "exit with a non-zero code if any finding" — this is how scripts and CI know a scan failed |
 | `src/ evidence/05-custom-rule/test-cases.js` | scan the app *and* the test file |
 
-Expected result — exit code 1, 6 findings, all of them in the test file:
+Expected result — exit code 1, **7 findings** (POSITIVE 1–5, the last
+matched twice, plus the seeded line itself), all 3 negatives clean:
 
-```
-evidence/05-custom-rule/test-cases.js:8   POSITIVE 1: direct interpolated call
-evidence/05-custom-rule/test-cases.js:14  POSITIVE 2: direct concatenation
-evidence/05-custom-rule/test-cases.js:21  POSITIVE 3: variable + template literal
-evidence/05-custom-rule/test-cases.js:27  POSITIVE 4: UPDATE variant
-evidence/05-custom-rule/test-cases.js:32  POSITIVE 5: variable + concatenation (matched twice)
-```
+![The rule catches every positive shape and none of the negatives](images/17-sast-rule-generalizes.png)
 
-The three negatives stay **clean** — the rule didn't flag the correct
-parameterized query, the greeting, or the static string:
-
-![](images/02-sast-custom-sqli.png)
-
-*Figure 2 — Real run of the project custom rule: the seeded SQLi
-(`documents.js:77`) plus all 5 generalized positive shapes, exit code 1.
-The negative cases (parameterized query, non-SQL strings) stayed clean.*
+*Figure 16 — real run: "Ran 1 rule on 8 files: 7 findings", exit code 1.
+The finding at `src/routes/documents.js:77` plus the test file's five
+positive shapes (the last matches twice) — and every negative case
+(parameterized query, greeting, static string) stayed clean.*
 
 > **Lesson 2:** writing a rule is 20% the rule and 80% proving it. The
 > negative cases are what show you understand the vulnerability.
@@ -776,6 +993,9 @@ The negative cases (parameterized query, non-SQL strings) stayed clean.*
 ---
 
 ## Stage 7 — Secrets scanning with gitleaks
+
+**Checkpoint:** `project1-starter`, clean tree, and **gitleaks 8.30.1**
+as installed in Stage 1.5 (verify: `gitleaks version`).
 
 ### Step 7.1 — The problem, in plain words
 
@@ -803,30 +1023,31 @@ Breaking it down:
 | `detect` | scan for secrets |
 | `--source .` | scan the current folder (`.` = "here") |
 
-**What you'll see depends on your gitleaks version — and that's itself a
-lesson:**
+![The default config misses the seeded key — by design](images/18-gitleaks-default.png)
 
-- In my original run (gitleaks **8.30.1**), the answer was
-  `INF no leaks found`. The seeded key, sitting in plain view, not
-  flagged.
-- Newer gitleaks builds flag it — on this machine the default config
-  reports it 12 times (because the project's own docs, README, and
-  evidence files quote the key).
+*Figure 17 — real gitleaks 8.30.1 run: `INF no leaks found`. The seeded
+key, sitting in plain view, not flagged.*
 
-Either way, the important part is the *reason* for the original miss.
-I tested it in isolation (control experiment): the key alone in a fresh
-repo → **not flagged**. A random high-entropy `AKIA…` key → **flagged**.
-So the rule wasn't broken — the *default rule's entropy threshold* was
-rejecting the placeholder. AWS's example key is deliberately
-low-entropy, and gitleaks' default `aws-access-token` rule requires a
-minimum entropy of 3.0 (real keys are random strings, high entropy;
-placeholders like `EXAMPLE` are predictable, low entropy).
+**This is not a bug — it's the lesson.** I tested it in isolation
+(control experiment): the key alone in a fresh repo → **not flagged**.
+A random high-entropy `AKIA…` key → **flagged**. So the rule wasn't
+broken — the *default rule's entropy threshold* was rejecting the
+placeholder. AWS's example key is deliberately low-entropy, and the
+default `aws-access-token` rule requires a minimum entropy of 3.0 (real
+keys are random strings, high entropy; placeholders like `EXAMPLE` are
+predictable, low entropy).
+
+> **Version footnote — worth writing in your report:** on a gitleaks
+> newer than 8.30.1, the default config often *does* flag this key —
+> I've seen "leaks found: 23" on one newer install (the project's own
+> docs and evidence quote the key dozens of times, and newer defaults
+> don't filter the placeholder). Same phenomenon, different default:
+> a "clean" scan is only clean if you know what your tool's defaults
+> actually filter. (Not that this one is real — that's Stage 8.)
 
 > **Lesson 3:** default tool configs quietly filter out low-entropy
 > credentials — exactly the ones attackers know how to use if you leave
-> them in a repo. A "clean" scan is only clean if you know what your
-> tool's defaults actually filter. (Not that this one is real — that's
-> Stage 8.)
+> them in a repo.
 
 ### Step 7.3 — The project config (same theme as the custom rule)
 
@@ -851,36 +1072,49 @@ gitleaks detect --source . -c gitleaks.toml
 Breaking it down: `-c gitleaks.toml` means "use *our* config file
 instead of the built-in one".
 
-**Expected output (on the original repo state):**
+**Expected output on the project as-shipped (config with the original
+README/evidence allowlist):**
 
-```
-WRN leaks found: 1
-  aws-access-token | src/config.js : 15   (exit 1)
-```
+![The project config finds the key — and a lot of documentation](images/19-gitleaks-config-initial.png)
 
-Exactly one leak: the seeded constant. (The historical output is saved
-in `evidence/06-secrets/current-tree-project-config.json`.)
+*Figure 18 — real gitleaks 8.30.1 run against the current tree:
+`WRN leaks found: 21`. The seeded constant is in there — but so are
+twenty mentions in the project's own documentation: the walkthrough and
+the final report both quote `AKIA…` and the dev password, on this tree
+and in earlier commits.*
 
-**One more triage decision:** the key also appears in `README.md` and
-inside the `evidence/` files — *because those documents describe the
-finding*. Flagging them adds noise, so the config allowlists those paths
-with the reason written into the config:
+That's the **triage moment**, and it's the same call the original project
+made. The key also appears in `README.md` and inside the `evidence/`
+files — *because those documents describe the finding*. Flagging them
+adds noise, so the config allowlists those paths with the reason written
+into the config:
 
 ```toml
 [allowlist]
-description = "Documented references to the seeded placeholder key ..."
-paths = ["README.md", "evidence/", "src/config.js"]
+description = "Documentation and evidence quote the seeded placeholder key and the dev password intentionally (Project 1 brief and deliverables). Triage, not hiding: the paths are scoped exactly, so a real key anywhere else is still flagged."
+paths = ["README.md", "docs/", "Project-Requirement/", "evidence/"]
 ```
 
 Allowlisting documented references — with the reason written down — is
 **triage, not hiding**: the allowlist is scoped to those exact paths, so
 a fresh key anywhere else is still flagged.
 
-> **Note for you running this today:** the project's later docs
-> (`docs/walkthrough.md`, `docs/final-findings-report.md`) also quote
-> the key, and the allowlist predates them — so a fresh run may report
-> ~6 hits, all of them documentation, not secrets. That's the same
-> triage call in action. The verdict on the real finding is unchanged.
+> **How to see it yourself:** run the scan, read the `File : Line`
+> column, and confirm each hit is a *documentation* line quoting the
+> finding. `<gitleaks detect --source . -c gitleaks.toml -f json -r report.json>` gives you the machine-readable list; `jq` makes it readable:
+
+```bash
+gitleaks detect --source . -c gitleaks.toml -f json -r /tmp/report.json; jq -r '.[] | "\(.RuleID) \(.File):\(.StartLine)"' /tmp/report.json
+```
+
+Now scan again — the only leak left is the real one:
+
+![After triage: exactly one leak, the real one](images/19-gitleaks-config.png)
+
+*Figure 19 — the same scan after the allowlist extension:
+`WRN leaks found: 1` — `src/config.js:15`, the seeded constant. The
+verdict on the real finding is unchanged: documentation hits are
+suppressed with a comment saying so, real hits are not.*
 
 ### Step 7.4 — The full-history sweep
 
@@ -894,18 +1128,21 @@ gitleaks detect --source . -c gitleaks.toml --log-opts="--all"
 ```
 
 Breaking it down: `--log-opts="--all"` tells git "don't just look at
-the current files — look at every commit". Expected result: exactly one
-leak, the seeded constant, in the commit that introduced it:
+the current files — look at every commit".
 
-![](images/03-gitleaks-full-history.png)
+![The full-history sweep: exactly one leak across all history](images/20-gitleaks-full-history.png)
 
-*Figure 3 — Real full-history sweep: exactly one leak, the seeded
-constant at `src/config.js:15` in commit `685702f8`. No other secrets
-exist in any commit.*
+*Figure 20 — real sweep across 42 commits: exactly one leak, the seeded
+constant, in the commit that introduced it (`685702f8`).* The
+machine-readable output gives the exact commit:
 
-The original run's machine-readable output is saved in
-`evidence/06-secrets/full-history.json`; the "clean elsewhere" claim is
-*proven*, not assumed.
+```bash
+gitleaks detect --source . -c gitleaks.toml --log-opts="--all" -f json -r /tmp/history.json
+jq -r '.[] | "\(.RuleID) \(.File):\(.StartLine) | commit \(.Commit)"' /tmp/history.json
+```
+
+You'll see one line: `aws-access-token src/config.js:15 | commit
+685702f8…`. The "clean elsewhere" claim is *proven*, not assumed.
 
 > **Lesson 4 (the dark one):** committed secrets live forever. A secret
 > pushed to git is in the history even after you delete the line — you'll
@@ -915,6 +1152,9 @@ The original run's machine-readable output is saved in
 ---
 
 ## Stage 8 — Live secret verification (scanner output vs. security finding)
+
+**Checkpoint:** repo as in Stage 7 (scan ran, key found). Network required
+for this stage.
 
 ### Step 8.1 — The problem, in plain words
 
@@ -971,24 +1211,14 @@ prints the verdict.
 
 This makes a **real network call to AWS**. The output:
 
-```
-Verifying credential found by scanners:
-  key:     AKIAIOSFODNN7EXAMPLE
-  source:  src/config.js (LEGACY_INTEGRATION_KEY)
-  check:   sts:GetCallerIdentity via AWS SDK
+![AWS's own verdict: InvalidClientTokenId](images/21-live-verification.png)
 
-VERDICT: NOT LIVE — AWS rejected the token (error code: InvalidClientTokenId)
-  message: The security token included in the request is invalid.
-```
+*Figure 21 — real network call to AWS `sts:GetCallerIdentity` against the
+found key. The key is inert: AWS itself says it doesn't exist in its
+identity service (`InvalidClientTokenId`).*
 
 **The key is inert.** It matches every pattern, and AWS itself says it
 doesn't exist in its identity service:
-
-![](images/04-live-verification.png)
-
-*Figure 4 — Real network call to AWS `sts:GetCallerIdentity` against the
-found key. The error code `InvalidClientTokenId` is AWS's own verdict:
-the key does not exist in its identity service.*
 
 > **Lesson 5:** a scanner *finding* is a pattern match; a *security
 > finding* is one you have verified. This constant is cosmetic —
@@ -998,6 +1228,9 @@ the key does not exist in its identity service.*
 ---
 
 ## Stage 9 — The reachability discovery (the surprise from Stage 3)
+
+**Checkpoint:** `project1-starter`, app running, DB in post-reset state
+(Stage 3's checkpoint).
 
 Remember the surprise in Stage 3.5 — search returning
 `Database unavailable`? Here's the story, because it changed how I read
@@ -1011,9 +1244,10 @@ curl localhost:3000/documents/abc
 
 Response:
 
-```json
-{"error":"Database unavailable"}
-```
+![The two identical errors](images/22-reachability-abc.png)
+
+*Figure 22 — `{"error":"Database unavailable"}` for a nonsense path —
+because `abc` isn't an integer id and the database rejects it.*
 
 Then search:
 
@@ -1021,13 +1255,17 @@ Then search:
 curl localhost:3000/documents/search
 ```
 
-Identical response. Two completely different requests, one identical
-answer. That told me `/documents/search` was **never reaching the search
-handler at all**. In Express, routes match in the order you register
-them — and `GET /:id` was registered *before* `GET /search`. So the
-request for `/search` was being captured by `/:id`, which binds
-`id = "search"`, and the database rejected `"search"` as an integer
-(it expects numbers).
+![The same response for a request that should work](images/23-reachability-search.png)
+
+*Figure 23 — the *same* error for `/documents/search` — a request that
+has a handler and should work.*
+
+Two completely different requests, one identical answer. That told me
+`/documents/search` was **never reaching the search handler at all**. In
+Express, routes match in the order you register them — and `GET /:id`
+was registered *before* `GET /search`. So the request for `/search` was
+being captured by `/:id`, which binds `id = "search"`, and the database
+rejected `"search"` as an integer (it expects numbers).
 
 **The seeded SQLi existed in the code but was unreachable through normal
 routing.** A static scan flags the line (it scans text, not
@@ -1036,9 +1274,22 @@ reachability); only running the app showed me it was shadowed. That's a
 it's the engineer's job. I filed it and fixed it together with the SQLi
 (Stage 10).
 
+> **Lesson 6:** run the app before believing the scanner. And label
+> every expected output with *which code state* it comes from — in
+> Stages 10–11 you'll see the same requests give different answers on
+> the fixed branch.
+
 ---
 
 ## Stage 10 — Fix both vulnerabilities for real
+
+**Checkpoint:** `project1-starter`, clean tree (your Stage 6/7 work was
+scans only, so nothing should be modified; verify with `git status`).
+Stop the app for the next restart:
+
+```bash
+pkill -f "node src/index.js" || true
+```
 
 ### Step 10.1 — Fix the SQL injection
 
@@ -1080,9 +1331,42 @@ a script tag renders as *inert text*:
 res.send(`<html><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></body></html>`);
 ```
 
+**What changed — look at the diff before you trust it:**
+
+```bash
+git diff src/routes/documents.js
+```
+
+![The actual changes](images/35-fix-diff.png)
+
+*Figure 24 — `git diff` after the fix: the SQLi bound-parameter change,
+the route reorder (search before `/:id`), and the `escapeHtml` calls.
+This is what "fixed" means — read it before you restart the app.*
+
 ---
 
 ## Stage 11 — Prove the fixes at runtime (not just "it compiles")
+
+**Checkpoint:** fixes applied, app stopped. Restart it (this time from
+the branch with the fixes), then **reset the data** — the proofs below
+expect ids 1 and 2 again:
+
+```bash
+pkill -f "node src/index.js" || true
+set -a && . ./.env.local && set +a
+psql "$DATABASE_URL" -c "TRUNCATE documents, comments RESTART IDENTITY CASCADE;"
+
+# in a second terminal:
+node src/index.js
+```
+
+then re-create the two documents (id 1 = "Quarterly Report", id 2 = the
+script tag):
+
+```bash
+DOC_ID=$(curl -s -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"Quarterly Report","body":"Q2 numbers"}' | jq -r .id) && echo "DOC_ID=$DOC_ID"
+XSS_ID=$(curl -s -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"<script>alert(1)</script>","body":"hello"}' | jq -r .id) && echo "XSS_ID=$XSS_ID"
+```
 
 ### Step 11.1 — Search works now
 
@@ -1090,9 +1374,10 @@ res.send(`<html><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></b
 curl "localhost:3000/documents/search?q=quarterly"
 ```
 
-```json
-[{"id":1,"title":"Quarterly Report"}]
-```
+![Search returns the document](images/31-search-works.png)
+
+*Figure 25 — after the route-order fix, `/documents/search` reaches its
+handler and returns the result.*
 
 ### Step 11.2 — The SQL injection attempt
 
@@ -1108,50 +1393,51 @@ curl "localhost:3000/documents/search?q=quarterly%27%20OR%20%271%27%3D%271"
 (Decoded, that's `q=quarterly' OR '1'='1` — the classic "show me
 everything" injection.)
 
-Expected result:
-
-```json
-[]
-```
-
 An **empty array** — the database searched for the literal text
 `quarterly' OR '1'='1`, found nothing, and returned nothing. If the
 injection were still live, this would have returned *every* document.
 
+![The injection returns nothing](images/32-sqli-attempt.png)
+
+*Figure 26 — `[]` — the bound parameter treated the payload as text. On
+the unfixed code, exactly this URL returns the whole table.*
+
 ### Step 11.3 — The XSS attempt
 
 ```bash
-curl localhost:3000/documents/5/render
+curl localhost:3000/documents/$XSS_ID/render
 ```
 
-(That's the id of the `<script>` document from Stage 5 — use yours.)
+(Use `$XSS_ID` — the id of the `<script>` document from the checkpoint.)
 
-Expected result:
+Expected result — compare with Figure 14:
 
 ```html
 <html><body><h1>&lt;script&gt;alert(1)&lt;/script&gt;</h1><p>hello</p></body></html>
 ```
 
-**Compare with Stage 5.2:** the raw `<script>` is gone — it's now
+![Escaped and inert](images/33-xss-render-escaped.png)
+
+*Figure 27 — the raw `<script>` is gone — it's now `&lt;script&gt;`,
+which a browser displays as *text* but never executes. Escaped, inert,
+fixed.*
+
+**Compare with Figure 14:** the raw `<script>` is gone — it's now
 `&lt;script&gt;`, which a browser displays as *text* but never executes.
 Escaped, inert, fixed.
 
 ### Step 11.4 — The rerun (this is what "fixed for real" means)
 
 ```bash
-semgrep --metrics=off --config semgrep/rules/ --error src/
+semgrep --metrics=off --config semgrep/rules/ --error src/; echo "exit code: $?"
 ```
 
 Expected result — **0 findings, exit code 0**:
 
-```
-Ran 1 rule on 7 files: 0 findings.
-```
+![The custom rule is clean after the fix](images/34-semgrep-rerun.png)
 
-![](images/05-rerun-clean.png)
-
-*Figure 5 — Real rerun after the fixes: the custom rule reports
-0 findings, exit 0. The SQL injection finding is gone.*
+*Figure 28 — real rerun after the fixes: 0 findings, exit code 0. The
+SQL injection finding is gone.*
 
 **One flag remained** from the *default* ruleset: `raw-html-format`
 still points at the render line even though the output is escaped.
@@ -1165,6 +1451,11 @@ exploitable" judgment call the brief grades.
 ---
 
 ## Stage 12 — The CI gate, proven
+
+**Checkpoint:** your fixes are committed where? For this guide, the gates
+run in GitHub Actions — so you need a repo on GitHub. This stage is the
+one that genuinely can't be local-only: `git checkout main`, push to
+**your own fork**, watch the runs.
 
 ### Step 12.1 — What "CI" means here
 
@@ -1183,11 +1474,28 @@ waiting for exactly this project. I added two enforcement jobs:
 
 ### Step 12.2 — Run 1: green on the fixed code
 
-Pushed `main`. CI: `build-and-test` ✅, `sast` ✅, `secrets-scan` ✅:
+Push `main`. CI: `build-and-test` ✅, `sast` ✅, `secrets-scan` ✅ — and
+because CI is an API too, you don't need to read the web UI to see it:
 
-![](images/06-ci-main-green.png)
+```bash
+gh run list --workflow ci.yml -L 6
+```
 
-*Figure 6 — Real GitHub Actions run on `main`: all three jobs green.*
+![The real run history](images/36-ci-run-list.png)
+
+*Figure 29 — real `gh run list` output. Green runs on `main`, plus the
+red ones this stage is about. The run IDs are what the next commands
+reference.*
+
+```bash
+gh run view 32167821478
+```
+
+![The green run in detail](images/37-ci-green.png)
+
+*Figure 30 — real `gh run view` of the green `main` run: build-and-test,
+sast, secrets-scan — three jobs, three checkmarks. Run the command
+yourself against your own latest run ID.*
 
 ### Step 12.3 — The gate catching our own real mistake
 
@@ -1205,16 +1513,15 @@ so it never existed**. I amended the evidence commit (replaced the
 script file, kept the message), rebased the follow-up commits on top,
 verified locally that the full-history scan was clean, and force-pushed
 (overwrote the remote history with) the rewritten `main`. (Safe here:
-private repo, no collaborators,
-minutes old.) Run 2: all green.
+private repo, no collaborators, minutes old.) Run 2: all green.
 
 ### Step 12.4 — Run 2: red on the violation branch (the deliverable)
 
-Then the actual proof. From clean `main`, a test branch
-`project1-violation-test` carrying a **fresh** seeded violation — a new
-SQL string concatenation (`src/routes/legacy.js`) and a new
-credential-shaped constant (`src/legacy-config.js`) — opened as a PR
-(pull request — a proposed change, reviewed before merging):
+Then the actual proof. From clean `main`, a test branch carrying a
+**fresh** seeded violation — a new SQL string concatenation
+(`src/routes/legacy.js`) and a new credential-shaped constant
+(`src/legacy-config.js`) — opened as a PR (pull request — a proposed
+change, reviewed before merging):
 
 ```
 X sast           → semgrep.rules.docutrust-unsafe-sql-interpolation: Findings: 2 (2 blocking)
@@ -1222,27 +1529,26 @@ X secrets-scan   → WRN leaks found: 1
 ✓ build-and-test
 ```
 
-Screenshot: `docs/images/07-ci-violation-red.png`.
-
-![](images/07-ci-violation-red.png)
-
-*Figure 7 — Real GitHub Actions run on the seeded violation PR: `sast`
-and `secrets-scan` both failed with exit code 1 while `build-and-test`
-passed. The gates demonstrably block new violations.*
-
 **CI blocked it. Both gates red on real GitHub Actions, with real
 output** (saved in `evidence/09-ci-gate/run2-violation-PR-FAILED-both-gates.txt`).
 I closed the PR and deleted the branch — the gates stay; the violation
 doesn't.
 
-> **Lesson 6:** a gate is only a gate if it can block. Green on good code
+![The red run that proves the gates can block](images/38-ci-red.png)
+
+*Figure 31 — real `gh run view` of a failed run: `sast` passed but
+`secrets-scan` failed — the exact shape of the gate catching a real
+mistake. On your fork, find the failed run with
+`gh run list --status failure`.*
+
+> **Lesson 7:** a gate is only a gate if it can block. Green on good code
 > is easy; red on bad code is the proof.
 
 ---
 
 ## Stage 13 — The final report
 
-`docs/final-findings-report.md` ties it together for the track: every
+`docs/project-1/final-findings-report.md` ties it together for the track: every
 finding with its cosmetic-or-exploitable verdict, what the live check
 proved, what CI now enforces — plus the handoff to Project 2 (SCA):
 the deliberately outdated `lodash@4.17.15` pin (confirmed by
@@ -1255,7 +1561,9 @@ the same pipeline.
 ## If something goes wrong
 
 A quick reference for the traps scattered through this walkthrough — the
-full explanation lives at the step named in each row:
+full explanation lives at the step named in each row. The table is
+split into "first-time setup" and "you're re-running" because the traps
+differ:
 
 | If you see this | What it means and what to do |
 |:---|:---|
@@ -1263,9 +1571,15 @@ full explanation lives at the step named in each row:
 | `docker ps` doesn't print a table of containers | The Docker service probably isn't running. Start it with `sudo service docker start` (Step 1.3, Path A). |
 | `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` | `DATABASE_URL` never reached Node. Re-run the load line: `set -a && source .env.local && set +a` (Step 2.4). |
 | `already exists` from the database setup commands | The database/user already exists — that's success, move on (Step 2.1). |
-| A different `id` in the responses than in the examples | Expected — the server assigns ids as it goes. Use the id your server returned (Step 3.2). |
-| `Migrations up to date` without an "Applying …" line | The tables already exist — success (Step 2.5). |
-| `INF no leaks found` from gitleaks | You're on a gitleaks version whose default rule skips low-entropy keys. The project config (`gitleaks.toml`) catches it anyway (Step 7.2). |
+| `ERROR: role ... already exists` after `CREATE ROLE` | Same — success for our purposes. The role/database from the first run is still there (Figure 4). |
+| `Error: listen EADDRINUSE address already in use :::3000` | An app instance is already running. `Ctrl+C` it, or re-run the checkpoint's `pkill -f "node src/index.js"`. Never try to fix this by editing code (Figure 6). |
+| `Error: No such file or directory` from `git checkout` with a half-finished stage | Your working tree has uncommitted changes from a previous stage; `git status` shows them. Commit or `git checkout -- .` and retry. |
+| A different number of results than in the examples (e.g. two Quarterly Reports) | The database was reset off-schedule: rows from a previous run survived. Re-run the stage's checkpoint (`TRUNCATE ...`) — never edit the data by hand in a way you can't explain. |
+| `Migrations up to date` without an "Applying …" line | The tables already exist — success (Step 2.5, Figure 5). |
+| `INF no leaks found` from gitleaks (default config) | That's the version we pinned: the default rule's entropy gate skips the placeholder. The project config (`gitleaks.toml`) catches it anyway (Step 7.2). |
+| `WRN leaks found: 21` (or any number > 1) from the project config | The findings beyond the first are documentation quoting the key. Triage: extend the allowlist with the docs paths, with a comment saying why (Step 7.3, Figures 18–19). |
+| `gh run view` says "no run found" | You're referencing a run ID from my repo. Replace it with your own: `gh run list -L 3` first. |
+| Your screenshot shows more/different `Runner` lines than Figure 12 | semgrep's registry rules and your version differ; the shape (1 finding at the render line, SQLi missing) is what matters, not the exact wording. |
 
 ---
 
@@ -1273,20 +1587,32 @@ full explanation lives at the step named in each row:
 
 1. **Run the app before trusting the scanner.** The reachability
    discovery (`/search` shadowed by `/:id`) was invisible to every
-   static tool.
+   static tool (Stage 9).
 2. **Default rulesets miss seeded findings — by design.** Both semgrep
-   and gitleaks defaults failed to flag this project's seeded items; the
-   custom rule and project config are what caught them. That's not a
-   tool failure; it's why the brief demands both.
+   and gitleaks 8.30.1 defaults failed to flag this project's seeded
+   items; the custom rule and project config are what caught them.
+   That's not a tool failure; it's why the brief demands both
+   (Stages 6–7).
 3. **Scanner output is a starting point, not a verdict.** One remaining
    default-rule flag after the XSS fix is a false positive — proven,
-   triaged, documented. And the secrets "finding" is inert — proven by
-   AWS itself.
+   triaged, documented (Stage 11.4). And the secrets "finding" is inert —
+   proven by AWS itself (Stage 8.3).
 4. **Committed secrets live forever.** The gate caught a literal I'd
-   committed; only rewriting the history removed it from the sweep.
-5. **A gate is only a gate if it can block.** The violation PR proved it.
+   committed; only rewriting the history removed it from the sweep
+   (Stage 12.3).
+5. **A gate is only a gate if it can block.** The violation PR proved it
+   (Stage 12.4).
+6. **Get comfortable with resets, or your second run will lie to you.**
+   The checkpoint pattern — stop the app, reset the data, prove it's
+   empty — is the reason every number in this guide reproduced on a
+   second pass.
 
 ## Evidence index
+
+Every evidence directory on `project1-starter` is the raw capture backing a
+stage; on this repo the finished versions live under `evidence/project-1/`,
+and the starter branch's tree carries the same files without the
+`project-1/` level:
 
 | Evidence | Deliverable |
 |:---|:---|
@@ -1296,5 +1622,10 @@ full explanation lives at the step named in each row:
 | `evidence/07-live-verification/` | 6 — live check: `InvalidClientTokenId` |
 | `evidence/08-fixed-rerun/` | 7 — fixes, runtime proof, clean rerun, FP triage |
 | `evidence/09-ci-gate/` | 9 — gate caught our literal; violation PR blocked |
-| `docs/final-findings-report.md` | 10 — report + Project 2 handoff |
-| `docs/images/` | Figures 1–7 — visual captures of the real tool outputs |
+| `docs/project-1/final-findings-report.md` | 10 — report + Project 2 handoff |
+| `docs/project-1/images/` | Figures 1–31 — real captures of the tool outputs |
+
+*One note on the figures: in this guide, every screenshot was taken from
+a real terminal running the exact command above on the starter branch.
+The history-sweep/verification figure captions name the tool version so
+you can reproduce them on your machine with the same version.*
