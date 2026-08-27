@@ -135,7 +135,7 @@ tree (it scans transitives too, by default, in both prod and dev).
 npm audit
 ```
 
-The output, in full, from the real starter state:
+Real output from the starter state — full run:
 
 ![The npm audit finding](images/10-audit-finding.png)
 
@@ -243,7 +243,7 @@ in the entire tree is the direct lodash pin. That clean statement is
 itself a deliverable — a review that names its packages and states a
 conclusion, not a wall of names.
 
-**Troubleshooting — this happened during the real run:**
+**Troubleshooting —** I hit this for real during the run:
 
 ```
 npm error invalid: lodash@4.18.1 /home/ubuntu/.../node_modules/lodash

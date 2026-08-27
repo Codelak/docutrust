@@ -160,11 +160,9 @@ terminal, not the browser):
   -config updater.checkOnStartup=false
 ```
 
-*(`updater.checkOnStartup=false` stops ZAP from swapping in a newer addon
-set at the first boot — the same addon drift that made 2.17.0 report
-"Could not initialize class ScanRuleMetadata" on one machine, my own
-verification run included. The rule-alert check below tells you if you hit
-it.)*
+*(`updater.checkOnStartup=false` prevents the first-boot addon swap that
+drifted a fresh 2.17.0 into breaking rule loading — my own verification
+run hit it; the rule-load check below tells you if yours does.)*
 
 In a *healthy* install, ZAP starts into an empty session. Verify the API
 is up:
@@ -233,8 +231,7 @@ curl -s "http://127.0.0.1:8090/JSON/script/action/load/?scriptName=docutrust-sql
 curl -s "http://127.0.0.1:8090/JSON/script/action/load/?scriptName=docutrust-xss-stored&scriptType=passive&scriptEngine=ECMAScript%20:%20Graal.js&fileName=$PWD/security/zap/xss-stored-passive.js"
 ```
 
-Check they actually loaded without error — `error: false` is the green
-light (the *name* is a single field, no spaces between lines):
+Check they actually loaded: `error: false` is the green light.
 
 ```bash
 curl -s "http://127.0.0.1:8090/JSON/script/view/listScripts/" \

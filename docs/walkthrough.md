@@ -110,17 +110,19 @@ Why these exact choices:
 
 ## The project in one paragraph (read this first)
 
-You are given an app — **DocuTrust**, a small web API (a program other
-programs can talk to over the network), built on Node.js and Express (a
-popular Node.js web framework), storing documents in PostgreSQL. Nobody
-has ever scanned it for security problems. Your job is to do the things a
-real DevSecOps engineer does:
+DocuTrust is a small Express/Postgres web API that stores documents. It
+has never been scanned for security problems, and that's the job here —
+for real, with the output kept:
 
 1. Run real security tools against it and **capture the real output**.
 2. Write a **custom rule** that catches a vulnerability the built-in rules
    miss.
 3. Prove whether a suspicious string is **actually a working credential** or
-   just something that *looks* like one.
+   just a pattern-match that *looks* like one.
+
+I'm following a track with deliberate seeded findings, so I know roughly
+what's hidden; the work is the same one you'd do on a codebase you know
+nothing about.
 
 The app ships with three interesting things hidden in its code (the brief
 calls them "seeded findings" — they were put there on purpose for you to
@@ -156,20 +158,11 @@ Here is the stage map for this whole walkthrough:
 
 ## Stage 1 — Install the tools you need
 
-### A note about commands in this guide
+### About the commands
 
-- Every command is written **on its own line**, with a short explanation
-  before or after it and (usually) the output you should see after it.
-- Paste **one command at a time**, look at what it printed, then move on.
-  Do not copy-paste a whole block — the whole point of this guide is that
-  you understand every step.
-- A `#` after a command is a **comment** — it explains what the command
-  does. You don't type the comment.
-- `$` at the start of a line just means "this is a terminal prompt". Don't
-  type the `$`.
-- In the Word version of this guide, every command is printed in **red** —
-  those are the lines you type. Everything else (explanations, file
-  contents, tool output) stays black.
+Every command is on its own line; run them one at a time and read the
+output before moving on. `#` starts a comment (don't type it), `$` is just
+the prompt, and in the Word version the command lines are printed in red.
 
 ### Step 1.1 — Check what you already have
 
@@ -284,15 +277,10 @@ Jump to Stage 2.)*
 
 ### Step 1.4 — Install semgrep
 
-**What is semgrep?** It's a *SAST* tool. **SAST** stands for **Static
-Application Security Testing** — "static" means it reads the source code
-like a text file and looks for known-dangerous patterns, without ever
-running the app. Think of it as a very strict proofreader for security
-mistakes. It's the tool that will catch the XSS bug.
-
-semgrep is a Python program, and the cleanest way to install it is with
-**pipx** (a tool that installs Python programs into their own little
-folder so they don't clash with your system Python):
+**What is semgrep?** A *SAST* tool: it reads source like a text file
+and flags dangerous patterns, without running the app. It's the tool that
+will catch the XSS bug. Install it with **pipx**, which keeps Python
+programs out of your system Python:
 
 ```bash
 pipx install semgrep
@@ -317,12 +305,10 @@ compare, not exact wording.
 
 ### Step 1.5 — Install gitleaks
 
-**What is gitleaks?** It's a *secrets scanner*. It reads your code (and
-your git history) looking for things that look like passwords or API keys:
-`AKIA...`, `sk-...`, `password=...`, and hundreds of other patterns. It
-will find the seeded AWS-key-shaped constant.
-
-gitleaks is a compiled program distributed as a zip file. **Install
+**What is gitleaks?** A *secrets scanner*: it reads your code and your
+git history looking for things shaped like passwords or API keys. It will
+find the seeded AWS-key-shaped constant. It's a compiled binary shipped as
+a zip: **Install
 version 8.30.1 — the version this guide's figures and the evidence files
 were made with.** gitleaks' default `aws-access-token` rule changed
 between versions, and the whole point of Stage 7 is to watch that behavior
@@ -402,22 +388,11 @@ docker run -d --name docutrust-postgres \
   postgres:16.4
 ```
 
-Breaking it down:
-
-| Part | What it does |
-|:---|:---|
-| `docker run` | "create a new container" |
-| `-d` | "detached" — run it in the background, don't block this terminal |
-| `--name docutrust-postgres` | give the container a name so you can control it later |
-| `-e POSTGRES_USER=docutrust` | set an environment variable *inside* the container: the database user is `docutrust` |
-| `-e POSTGRES_PASSWORD=docutrust_dev_password` | the password for that user — **this is a development-only password**, the same one the app ships with in `.env.example`, not a real credential |
-| `-e POSTGRES_DB=docutrust` | create a database named `docutrust` |
-| `-p 5432:5432` | "port mapping": the app talks to the database on port 5432, and this makes the container listen on that port from outside |
-| `postgres:16.4` | the image (the template) to build the container from — version 16.4 |
-
-The `\` at the end of a line just means "this command continues on the
-next line" — you can also type it all on one line. If you want, you can
-paste the whole command including the `\`s, it's still one command.
+In plain terms: `-d` detaches, `--name` names it, `-e` sets the three
+environment values the app expects (same credentials as `.env.example`,
+dev-only), `-p 5432:5432` publishes the Postgres port, and `postgres:16.4`
+pins the image. The trailing `\` just continues the line; one line works
+just as well.
 
 > **Re-running long after a restart:** a stopped container isn't a failed
 > one. `docker ps` only lists *running* containers — use `docker ps -a`
@@ -460,17 +435,14 @@ Now go into the project folder and install the libraries the app needs:
 cd docutrust
 ```
 
-**What just happened:** `cd` ("change directory") moves your terminal into
-the project folder. From here on, run every command from inside
-`docutrust`.
+From here on every command runs from inside `docutrust`.
 
 ```bash
 npm install
 ```
 
-This reads `package.json` (the app's shopping list) and downloads every
-library into a folder called `node_modules`. You'll see a progress list
-finishing with something like `added 100 packages`.
+npm install downloads what `package.json` declares into
+`node_modules`; the summary ends with `added N packages`.
 
 > **Re-running:** a re-run is a no-op-ish check ("up to date"), and
 > deleting `node_modules` + re-running `npm install` is the standard cure
@@ -486,11 +458,8 @@ template config file called `.env.example`:
 cp .env.example .env.local
 ```
 
-**What just happened:** `cp` copies the file. `.env` files hold
-"environment variables" — settings the app reads at startup. `.env.example`
-is the template (safe to share), and `.env.local` is your real copy (never
-committed to git — it may hold real credentials one day). Open `.env.local`
-in an editor and look at it — it should contain one line:
+`cp` copies the template. `.env.example` is safe to share; `.env.local`
+is your real copy, never committed. It should contain one line:
 
 ```
 DATABASE_URL="postgresql://docutrust:docutrust_dev_password@localhost:5432/docutrust"
@@ -541,9 +510,8 @@ The project includes a small program that creates them from a SQL file:
 npm run migrate
 ```
 
-**What just happened:** `npm run migrate` runs the `migrate` script from
-`package.json`, which executes `src/migrate.js`. That script reads the
-`migrations/` folder and applies any SQL files that haven't run yet.
+`npm run migrate` runs `src/migrate.js`, which applies any SQL files in
+`migrations/` that haven't run yet.
 
 On a fresh database you'll see:
 
@@ -578,10 +546,9 @@ You should see:
 DocuTrust dev listening on 3000
 ```
 
-**What just happened:** your terminal is now *blocked* — the app is
-running, and it will keep running until you press `Ctrl+C`. Leave this
-terminal alone. Open a **second terminal** for the next stage. (If you
-later want to stop the app, press `Ctrl+C` in this terminal.)
+Your terminal is now blocked by the running app. Leave it open, open a
+second terminal for the rest of this guide, and stop the app with
+`Ctrl+C` when you're done with a stage.
 
 > **Re-running / second instance:** if you see `Error: listen
 > EADDRINUSE: address already in use :::3000`, an instance is already
@@ -634,10 +601,8 @@ Expected output:
 it means it: the endpoint itself checks the database connection before
 answering.*
 
-**What just happened:** curl asked the app "are you alive?" The app
-checked that it can reach the database, and answered `"status":"ok"`.
-This is the app's health endpoint — the kind of thing monitoring tools
-ping every minute.
+That short response is the point of a health endpoint: it only answers
+"ok" after checking the database connection itself.
 
 ### Step 3.2 — Create a document
 
@@ -647,16 +612,9 @@ The app's main job is storing documents. This command creates one:
 curl -s -X POST localhost:3000/documents -H 'Content-Type: application/json' -d '{"title":"Quarterly Report","body":"Q2 numbers"}' | jq .
 ```
 
-Breaking it down:
-
-| Part | What it does |
-|:---|:---|
-| `curl` | the tool we use to send HTTP requests |
-| `-X POST` | use the POST method — "create something new" (browsers use GET to *read*, POST to *create*) |
-| `localhost:3000/documents` | the app's address + the documents resource |
-| `-H 'Content-Type: application/json'` | tell the app "what follows is JSON" (JSON is a plain-text format for describing data) — the app only parses the body if you send this header |
-| `-d '...'` | the data ("body") to send — a title and a body in JSON format |
-| `\| jq .` | pretty-print the JSON the server returns, instead of one long line |
+The parts that matter: `-X POST` creates, `-H 'Content-Type: application/json'`
+says the body is JSON (the app refuses to parse otherwise), `-d` sends it,
+and `| jq .` pretty-prints the response.
 
 Expected output (note the `id` the server assigned):
 
@@ -744,10 +702,8 @@ the `?` and `=` from the shell.*
 
 > **Don't skip this moment.** A search for a document that provably
 > exists failing with a database error is not noise — it's a finding in
-> disguise, and it's the discovery Stage 9 is about. (If search *does*
-> return `[{"id":1,...}]` for you, you're on a branch where the route
-> order is already fixed — the same discovery, already resolved; you'll
-> still see both sides in Stages 10–11.)
+> disguise (§Stage 9). If search *does* return results, your checkout has
+> the route order already fixed; you'll still see both sides in 10–11.
 
 ---
 
@@ -775,15 +731,8 @@ web security risks list) and the **JavaScript** ruleset:
 semgrep --metrics=off --config=p/owasp-top-ten --config=p/javascript src/
 ```
 
-Breaking it down:
-
-| Part | What it does |
-|:---|:---|
-| `semgrep` | the scanner |
-| `--metrics=off` | don't send anonymous usage statistics — good hygiene |
-| `--config=p/owasp-top-ten` | use the OWASP Top Ten ruleset (`p/` is semgrep's shorthand for "registry") |
-| `--config=p/javascript` | also use the JavaScript ruleset |
-| `src/` | scan this folder (the app's source code) |
+`--metrics=off` is hygiene (no anonymous stats), `--config=p/...` selects
+the registry rulesets, `src/` is what gets scanned.
 
 Expected result — **one finding** (the run takes a few seconds; the
 rulesets are fetched and cached on first use):
@@ -1193,9 +1142,8 @@ npm install
 cd ..
 ```
 
-**What just happened:** we stepped into `security/`, installed that
-script's own dependencies, and stepped back to the project root — the
-next command runs from there.
+The verification script keeps its own dependencies, so it gets its own
+`npm install`.
 
 Then run the check:
 
@@ -1203,9 +1151,8 @@ Then run the check:
 node security/verify-credential.js
 ```
 
-**What just happened:** Node runs the verification script — it reads the
-found key straight from `src/config.js`, makes the call to AWS, and
-prints the verdict.
+The script reads the key straight from `src/config.js` — the exact
+string the scanner reported — and asks AWS about it.
 
 ### Step 8.3 — The verdict
 
