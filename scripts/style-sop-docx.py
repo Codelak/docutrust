@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Style the pandoc-generated walkthrough.docx to a professional how-to
-standard: per-project cover page, table of contents, colored headings,
-accent-bordered code blocks (commands in dark red), callout boxes for
-quotes, styled figure captions, bordered tables with shaded headers, and a
-footer with the document title + page numbers.
+"""Style a pandoc-generated SOP docx to the DocuTrust professional standard:
+per-project cover page (SOP variant with version/author/date), table of
+contents, colored headings, accent-bordered code blocks (commands in dark
+red), callout boxes for quotes, styled figure captions, bordered tables
+with shaded headers, and a footer with the document title + page numbers.
 
-Usage (from a project's doc directory, so relative image paths resolve):
-    pandoc walkthrough.md -o walkthrough.docx --toc --toc-depth=2
-    python3 ../../scripts/style-walkthrough-docx.py walkthrough.docx
+Sibling of style-walkthrough-docx.py: same visual language, SOP cover.
 
-The cover takes its project number from the walkthrough's own title.
+Usage (from the SOP's output directory, so relative image paths resolve):
+    pandoc Project-1-SOP.md -o Project-1-SOP.docx --toc --toc-depth=2
+    python3 ../../../scripts/style-sop-docx.py Project-1-SOP.docx [source.md]
 """
+import glob
 import os
 import re
 import sys
@@ -151,22 +152,25 @@ def add_cover_page(doc, project_no):
         made.append(p._p)
         return p
 
-    line("DOCUTRUST — DEVSECOPS TRACK · CHAIN A · PROJECT FRAMEWORK",
-         9, GOLD, bold=True)
+    line("DOCUTRUST — DEVSECOPS TRACK · CHAIN A", 9, GOLD, bold=True)
     line("", 13)
     line("DocuTrust", 42, NAVY, bold=True)
     line(COVER_TRACKS[project_no][0], 19, BLUE)
     line(COVER_TRACKS[project_no][1], 12, GREY, italic=True)
     line("— " * 14, 12, RULER)
+    line("DevSecOps Implementation Guide / SOP", 14, NAVY, bold=True)
+    line("Version 1.0 · Author: Codelak · August 2026", 11, GREY)
+    line("", 10)
     line(
-        "Every command in this walkthrough actually ran, and every screenshot "
-        "is a real capture of that command on a real terminal. Evidence files "
-        "and figures are cited along the way. The guide assumes a Bash "
-        "terminal (macOS, Linux, or WSL2 on Windows).",
+        "Every command in this guide actually ran, and every figure is a "
+        "real capture of that command on a real terminal. An engineer can "
+        "execute this guide from start to finish — environment preparation, "
+        "task-by-task implementation, verification, CI gates, and evidence — "
+        "and reach the same final state.",
         10, GREY, italic=True)
     line(
-        "Guide format: stage-by-stage · every command typed by you · every "
-        "output shown as it happened · a reset contract so re-runs match.",
+        "Format: task-based · every command shown with its expected output · "
+        "checkpoints before every task · rerun and idempotency documented.",
         9.5, BLUE)
     line("DocuTrust track · updated August 2026", 10, GREY)
     line("", 11, page_break=True)
@@ -284,10 +288,12 @@ def set_font(p, name=BODY_FONT, size=None, color=None, bold=None):
             r.font.bold = bold
 
 
-def main(path):
+def main(path, md_path=None):
     doc = Document(path)
-    md_path = os.path.join(os.path.dirname(os.path.abspath(path)),
-                           "walkthrough.md")
+    if md_path is None:
+        base = os.path.dirname(os.path.abspath(path))
+        candidates = sorted(glob.glob(os.path.join(base, "*.md")))
+        md_path = candidates[0]
     title = ""
     with open(md_path, encoding="utf-8") as f:
         for line in f:
@@ -361,9 +367,10 @@ def main(path):
     add_footer(doc, f"DocuTrust — {title}")
     add_cover_page(doc, project_no)
     doc.save(path)
-    print(f"styled {path}: cover, TOC, headings, code boxes, callouts, "
+    print(f"styled {path}: SOP cover, TOC, headings, code boxes, callouts, "
           "captions, tables, footer")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs/project-1/walkthrough.docx")
+    args = sys.argv[1:]
+    main(args[0], args[1] if len(args) > 1 else None)
